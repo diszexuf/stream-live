@@ -1,0 +1,108 @@
+package ru.diszexuf.streamlive.controller;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import ru.diszexuf.streamlive.dto.StreamDto;
+import ru.diszexuf.streamlive.model.Stream;
+import ru.diszexuf.streamlive.service.StreamService;
+
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/streams")
+@RequiredArgsConstructor
+@CrossOrigin
+public class StreamController {
+    
+    private final StreamService streamService;
+    
+    @GetMapping
+    public ResponseEntity<List<StreamDto>> getAllStreams() {
+        return ResponseEntity.ok(streamService.getAllStreams());
+    }
+    
+    @GetMapping("/live")
+    public ResponseEntity<List<StreamDto>> getLiveStreams() {
+        return ResponseEntity.ok(streamService.getLiveStreams());
+    }
+    
+    @GetMapping("/{id}")
+    public ResponseEntity<StreamDto> getStreamById(@PathVariable Long id) {
+        return streamService.getStreamById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+    
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<StreamDto>> getStreamsByUser(@PathVariable UUID userId) {
+        List<StreamDto> streams = streamService.getStreamsByUser(userId);
+        return ResponseEntity.ok(streams);
+    }
+    
+    @GetMapping("/category/{categoryId}")
+    public ResponseEntity<List<StreamDto>> getStreamsByCategory(@PathVariable Long categoryId) {
+        List<StreamDto> streams = streamService.getStreamsByCategory(categoryId);
+        return ResponseEntity.ok(streams);
+    }
+    
+    @PostMapping
+    public ResponseEntity<StreamDto> createStream(
+            @RequestBody Stream stream,
+            @RequestParam UUID userId,
+            @RequestParam Long categoryId) {
+        return streamService.createStream(stream, userId, categoryId)
+                .map(streamDto -> ResponseEntity.status(HttpStatus.CREATED).body(streamDto))
+                .orElse(ResponseEntity.badRequest().build());
+    }
+    
+    @PutMapping("/{id}")
+    public ResponseEntity<StreamDto> updateStream(@PathVariable Long id, @RequestBody Stream stream) {
+        return streamService.updateStream(id, stream)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+    
+    @PostMapping("/{id}/start")
+    public ResponseEntity<StreamDto> startStream(@PathVariable Long id) {
+        return streamService.startStream(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+    
+    @PostMapping("/{id}/end")
+    public ResponseEntity<StreamDto> endStream(@PathVariable Long id) {
+        return streamService.endStream(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+    
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteStream(@PathVariable Long id) {
+        if (streamService.deleteStream(id)) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+    
+    // Для демонстрации обновления кол-ва зрителей (в реальности использовали бы WebSocket)
+    @PostMapping("/{id}/viewers")
+    public ResponseEntity<StreamDto> updateViewerCount(
+            @PathVariable Long id,
+            @RequestParam int delta) {
+        return streamService.updateViewerCount(id, delta)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+    
+    @PostMapping("/{id}/reset-key")
+    public ResponseEntity<String> resetStreamKey(
+            @PathVariable Long id,
+            @RequestParam UUID userId) {
+        return streamService.resetStreamKey(id, userId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+}

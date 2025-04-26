@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: stream-live
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/streamlive
+    username: postgres
+    password: postgres
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  web:
+    resources:
+      static-locations: classpath:/static/,file:./imgs/
+  mvc:
+    static-path-pattern: /imgs/**
+
+server:
+  port: 8080
+  

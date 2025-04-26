@@ -1,0 +1,279 @@
+@startuml "Диаграмма компонентов StreamLive"
+
+skinparam componentStyle uml2
+skinparam defaultTextAlignment center
+skinparam linetype ortho
+skinparam monochrome true
+skinparam shadowing false
+
+title "Архитектура системы StreamLive"
+
+' Основные компоненты
+package "Фронтенд" {
+  [Vue.js SPA] as frontend
+}
+
+package "Бэкенд" {
+  [Spring Boot API] as backend
+}
+
+package "Вспомогательные сервисы" {
+  [Docker] as docker
+  database "PostgreSQL" as postgres
+  [Keycloak] as keycloak
+  [NGINX RTMP Server] as rtmp
+  [Модуль цензуры] as censorship
+}
+
+' Внешние пользователи
+actor "Стример" as streamer
+actor "Зритель" as viewer
+[OBS Studio] as obs
+
+' Директории для обработки видео
+folder "input_stream" as input
+folder "processed_stream" as processed
+
+' Связи компонентов
+streamer --> obs : Использует для трансляции
+obs --> rtmp : Публикует RTMP-поток
+rtmp --> input : Сохраняет входящий поток
+input --> censorship : Передает на обработку
+censorship --> processed : Перемещает после цензуры
+processed --> frontend : Служит источником HLS
+viewer --> frontend : Смотрит стрим
+
+frontend --> backend : REST API запросы
+frontend <--> keycloak : Аутентификация
+backend <--> postgres : Хранение данных
+backend <--> keycloak : Проверка токенов
+backend <--> rtmp : Управление стримами
+backend <--> censorship : Управление настройками цензуры
+
+note right of censorship
+  Модуль анализирует видеопоток 
+  и обрабатывает неприемлемый контент
+  (например, нецензурную лексику, запрещенные изображения)
+end note
+
+@enduml
+
+@startuml "Диаграмма аутентификации пользователя"
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowFontSize 11
+skinparam backgroundColor white
+
+title "Процесс аутентификации пользователя"
+
+actor "Пользователь" as user
+participant "Vue.js Frontend" as frontend
+participant "Spring Boot API" as backend
+participant "Keycloak" as keycloak
+participant "PostgreSQL" as db
+
+activate user
+user -> frontend : Вход в систему
+activate frontend
+frontend -> keycloak : Запрос аутентификации
+activate keycloak
+keycloak -> db : Проверка учетных данных
+activate db
+db --> keycloak : Подтверждение
+deactivate db
+keycloak -> frontend : Токен JWT
+deactivate keycloak
+
+frontend -> backend : Запрос с токеном JWT
+activate backend
+backend -> keycloak : Проверка валидности токена
+activate keycloak
+keycloak -> backend : Подтверждение токена и роли
+deactivate keycloak
+
+backend -> db : Получение данных пользователя
+activate db
+db -> backend : Детали пользователя
+deactivate db
+backend -> frontend : Информация о пользователе
+deactivate backend
+
+frontend -> user : Перенаправление на главную страницу
+deactivate frontend
+deactivate user
+
+@enduml
+
+@startuml "Диаграмма создания стрима"
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowFontSize 11
+skinparam backgroundColor white
+
+title "Процесс создания нового стрима"
+
+actor "Стример" as streamer
+participant "Vue.js Frontend" as frontend
+participant "Stream Service" as streamService
+participant "PostgreSQL" as db
+
+activate streamer
+streamer -> frontend : Переход на страницу создания стрима
+activate frontend
+frontend -> streamer : Отображение формы
+streamer -> frontend : Заполнение деталей стрима\n(название, категория, описание, превью)
+frontend -> streamService : POST /api/streams
+activate streamService
+streamService -> streamService : Генерация ключа стрима
+streamService -> db : Сохранение информации о стриме
+activate db
+db -> streamService : Подтверждение
+deactivate db
+streamService -> frontend : Данные стрима с ключом
+deactivate streamService
+frontend -> streamer : Отображение ключа стрима\nи инструкций для OBS
+deactivate frontend
+deactivate streamer
+
+@enduml
+
+@startuml "Диаграмма запуска трансляции"
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowFontSize 11
+skinparam backgroundColor white
+
+title "Процесс запуска трансляции"
+
+actor "Стример" as streamer
+participant "OBS Studio" as obs
+participant "NGINX RTMP Server" as rtmp
+participant "Модуль цензуры" as censorship
+participant "Stream Service" as streamService
+participant "PostgreSQL" as db
+
+activate streamer
+streamer -> obs : Настройка OBS с RTMP URL и ключом стрима
+activate obs
+streamer -> obs : Запуск трансляции
+obs -> rtmp : Публикация RTMP потока
+activate rtmp
+rtmp -> streamService : Уведомление on_publish
+activate streamService
+streamService -> db : Обновление статуса стрима (live=true)
+activate db
+db --> streamService : Подтверждение
+deactivate db
+streamService --> rtmp : Разрешение на публикацию
+deactivate streamService
+
+rtmp -> censorship : Передача потока на обработку
+activate censorship
+censorship -> censorship : Анализ и фильтрация контента
+censorship --> rtmp : Возврат обработанного потока
+deactivate censorship
+
+rtmp -> rtmp : Конвертация RTMP в HLS
+note right: FFmpeg конвертирует поток\nи создает .m3u8 плейлисты
+
+deactivate streamer
+
+@enduml
+
+@startuml "Диаграмма просмотра стрима"
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowFontSize 11
+skinparam backgroundColor white
+
+title "Процесс просмотра стрима зрителем"
+
+actor "Зритель" as viewer
+participant "Vue.js Frontend" as frontend
+participant "Stream Service" as streamService
+participant "NGINX RTMP Server" as rtmp
+participant "PostgreSQL" as db
+
+activate viewer
+viewer -> frontend : Переход на страницу стрима
+activate frontend
+frontend -> streamService : GET /api/streams/{id}
+activate streamService
+streamService -> db : Запрос данных стрима
+activate db
+db -> streamService : Данные стрима
+deactivate db
+streamService -> frontend : Информация о стриме и статус
+deactivate streamService
+
+alt Стрим активен (live=true)
+  frontend -> rtmp : Запрос HLS потока (.m3u8)
+  activate rtmp
+  rtmp -> frontend : Передача манифеста HLS
+  frontend -> rtmp : Запрос сегментов (.ts)
+  rtmp -> frontend : Передача видео сегментов
+  frontend -> viewer : Воспроизведение видео
+  
+  frontend -> streamService : Увеличение счетчика зрителей
+  activate streamService
+  streamService -> db : Сохранение счетчика
+  activate db
+  db --> streamService : Подтверждение
+  deactivate db
+  deactivate streamService
+else Стрим офлайн
+  frontend -> viewer : Отображение превью и\nсообщения "Стрим не активен"
+end
+
+deactivate rtmp
+deactivate frontend
+deactivate viewer
+
+@enduml
+
+@startuml "Диаграмма завершения стрима"
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowFontSize 11
+skinparam backgroundColor white
+
+title "Процесс завершения стрима"
+
+actor "Стример" as streamer
+participant "OBS Studio" as obs
+participant "Vue.js Frontend" as frontend
+participant "NGINX RTMP Server" as rtmp
+participant "Stream Service" as streamService
+participant "PostgreSQL" as db
+
+activate streamer
+alt Ручное завершение через интерфейс
+  streamer -> frontend : Нажатие кнопки "Завершить стрим"
+  activate frontend
+  frontend -> streamService : POST /api/streams/{id}/end
+  activate streamService
+else Завершение через OBS
+  streamer -> obs : Остановка трансляции
+  activate obs
+  obs -x rtmp : Завершение RTMP потока
+  deactivate obs
+  activate rtmp
+  rtmp -> streamService : Уведомление on_publish_done
+  deactivate rtmp
+end
+
+streamService -> db : Обновление статуса стрима (live=false)
+activate db
+streamService -> db : Сохранение длительности и метаданных
+db --> streamService : Подтверждение
+deactivate db
+
+streamService -> frontend : Обновленные данные стрима
+deactivate streamService
+frontend -> streamer : Отображение статистики трансляции
+deactivate frontend
+
+actor "Зритель" as viewer
+activate viewer
+activate frontend
+frontend -> viewer : Отображение оффлайн-сообщения\nдля активных зрителей
+deactivate frontend
+deactivate viewer
+deactivate streamer
+
+@enduml 
