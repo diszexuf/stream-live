@@ -6,13 +6,16 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.UUID;
+import java.util.HashSet;
 
 @Entity
 @Table(name = "streams",
         indexes = {
                 @Index(name = "idx_stream_user", columnList = "user_id"),
                 @Index(name = "idx_stream_live", columnList = "is_live"),
+                @Index(name = "idx_stream_title", columnList = "title")
         })
 @Getter
 @Setter
@@ -42,9 +45,13 @@ public class Stream extends CoreEntity {
     @Column(name = "stream_key", unique = true, nullable = false, updatable = false, length = 64)
     private String streamKey;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", foreignKey = @ForeignKey(name = "fk_stream_category"))
-    private Category category;
+    @ElementCollection
+    @CollectionTable(
+        name = "stream_tags",
+        joinColumns = @JoinColumn(name = "stream_id")
+    )
+    @Column(name = "tag", length = 50)
+    private Set<String> tags = new HashSet<>();
 
     @Column(name = "is_live", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
     private Boolean isLive;
@@ -55,4 +62,27 @@ public class Stream extends CoreEntity {
     @Column(name = "ended_at")
     private LocalDateTime endedAt;
 
+    @Column(name = "viewers_count", nullable = false, columnDefinition = "INT DEFAULT 0")
+    private Integer viewersCount = 0;
+
+    public Stream(UUID id, User user, String title, String description, String thumbnailUrl, 
+                 String streamKey, Set<String> tags, Boolean isLive, Integer viewersCount,
+                 LocalDateTime startedAt, LocalDateTime endedAt) {
+        this.id = id;
+        this.user = user;
+        this.title = title;
+        this.description = description;
+        this.thumbnailUrl = thumbnailUrl;
+        this.streamKey = streamKey;
+        this.tags = tags != null ? tags : new HashSet<>();
+        this.isLive = isLive;
+        this.viewersCount = viewersCount;
+        this.startedAt = startedAt;
+        this.endedAt = endedAt;
+    }
+
+    @Override
+    public UUID getId() {
+        return id;
+    }
 }

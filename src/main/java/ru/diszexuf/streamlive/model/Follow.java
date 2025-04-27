@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Follow {
+public class Follow extends CoreEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

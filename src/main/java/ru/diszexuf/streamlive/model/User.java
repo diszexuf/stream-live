@@ -47,4 +47,9 @@ public class User extends CoreEntity {
     @Column(name = "follower_count", nullable = false, columnDefinition = "INT DEFAULT 0")
     private Integer followerCount;
 
+    @Override
+    public UUID getId() {
+        return id;
+    }
+
 }

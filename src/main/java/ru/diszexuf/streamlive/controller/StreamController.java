@@ -30,7 +30,7 @@ public class StreamController {
     }
     
     @GetMapping("/{id}")
-    public ResponseEntity<StreamDto> getStreamById(@PathVariable Long id) {
+    public ResponseEntity<StreamDto> getStreamById(@PathVariable UUID id) {
         return streamService.getStreamById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -42,64 +42,57 @@ public class StreamController {
         return ResponseEntity.ok(streams);
     }
     
-    @GetMapping("/category/{categoryId}")
-    public ResponseEntity<List<StreamDto>> getStreamsByCategory(@PathVariable Long categoryId) {
-        List<StreamDto> streams = streamService.getStreamsByCategory(categoryId);
-        return ResponseEntity.ok(streams);
+    @GetMapping("/search")
+    public ResponseEntity<List<StreamDto>> searchStreams(@RequestParam String query) {
+        return ResponseEntity.ok(streamService.searchStreams(query));
+    }
+    
+    @GetMapping("/tags/popular")
+    public ResponseEntity<List<String>> getPopularTags() {
+        return ResponseEntity.ok(streamService.getPopularTags());
     }
     
     @PostMapping
     public ResponseEntity<StreamDto> createStream(
             @RequestBody Stream stream,
-            @RequestParam UUID userId,
-            @RequestParam Long categoryId) {
-        return streamService.createStream(stream, userId, categoryId)
+            @RequestParam UUID userId) {
+        return streamService.createStream(stream, userId)
                 .map(streamDto -> ResponseEntity.status(HttpStatus.CREATED).body(streamDto))
                 .orElse(ResponseEntity.badRequest().build());
     }
     
     @PutMapping("/{id}")
-    public ResponseEntity<StreamDto> updateStream(@PathVariable Long id, @RequestBody Stream stream) {
+    public ResponseEntity<StreamDto> updateStream(@PathVariable UUID id, @RequestBody Stream stream) {
         return streamService.updateStream(id, stream)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
     
     @PostMapping("/{id}/start")
-    public ResponseEntity<StreamDto> startStream(@PathVariable Long id) {
+    public ResponseEntity<StreamDto> startStream(@PathVariable UUID id) {
         return streamService.startStream(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
     
     @PostMapping("/{id}/end")
-    public ResponseEntity<StreamDto> endStream(@PathVariable Long id) {
+    public ResponseEntity<StreamDto> endStream(@PathVariable UUID id) {
         return streamService.endStream(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
     
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteStream(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteStream(@PathVariable UUID id) {
         if (streamService.deleteStream(id)) {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
     }
     
-    // Для демонстрации обновления кол-ва зрителей (в реальности использовали бы WebSocket)
-    @PostMapping("/{id}/viewers")
-    public ResponseEntity<StreamDto> updateViewerCount(
-            @PathVariable Long id,
-            @RequestParam int delta) {
-        return streamService.updateViewerCount(id, delta)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-    
     @PostMapping("/{id}/reset-key")
     public ResponseEntity<String> resetStreamKey(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @RequestParam UUID userId) {
         return streamService.resetStreamKey(id, userId)
                 .map(ResponseEntity::ok)

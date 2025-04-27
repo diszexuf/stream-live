@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.UUID;
 
 @Data
@@ -15,9 +16,11 @@ public class StreamDto {
     private UserDto user;
     private String title;
     private String description;
-    private String thumbnail;
-    private UUID streamKey;
-    private CategoryDto category;
-    private boolean isLive;
+    private String thumbnailUrl;
+    private String streamKey;
+    private Set<String> tags;
+    private Boolean isLive;
+    private Integer viewersCount;
     private LocalDateTime startedAt;
+    private LocalDateTime endedAt;
 } 

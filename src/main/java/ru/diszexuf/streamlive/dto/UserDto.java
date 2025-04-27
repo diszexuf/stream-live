@@ -18,4 +18,5 @@ public class UserDto {
     private String avatarUrl;
     private String bio;
     private Integer followersCount;
+    private String streamKey;
 }

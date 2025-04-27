@@ -1,6 +1,6 @@
 <template>
-  <auth-card title="Авторизация">
-    <v-form @submit.prevent="login">
+  <auth-card title="Регистрация">
+    <v-form @submit.prevent="register">
       <v-text-field
         v-model="username"
         label="Имя пользователя"
@@ -12,12 +12,34 @@
       ></v-text-field>
       
       <v-text-field
+        v-model="email"
+        label="Email"
+        type="email"
+        required
+        :rules="[v => !!v || 'Введите email']"
+        prepend-inner-icon="mdi-email"
+        variant="outlined"
+        density="comfortable"
+      ></v-text-field>
+      
+      <v-text-field
         v-model="password"
         label="Пароль"
         type="password"
         required
         :rules="[v => !!v || 'Введите пароль']"
         prepend-inner-icon="mdi-lock"
+        variant="outlined"
+        density="comfortable"
+      ></v-text-field>
+      
+      <v-text-field
+        v-model="confirmPassword"
+        label="Подтвердите пароль"
+        type="password"
+        required
+        :rules="[v => v === password || 'Пароли не совпадают']"
+        prepend-inner-icon="mdi-lock-check"
         variant="outlined"
         density="comfortable"
       ></v-text-field>
@@ -38,19 +60,19 @@
         :loading="isLoading"
         class="mt-2"
       >
-        Войти
+        Зарегистрироваться
       </v-btn>
 
       <div class="text-center mt-6">
         <p class="text-body-2 text-medium-emphasis mb-2">
-          Еще нет аккаунта?
+          Уже есть аккаунт?
         </p>
         <v-btn
           variant="text"
-          to="/register"
+          to="/login"
           class="text-none"
         >
-          Зарегистрироваться
+          Войти
         </v-btn>
       </div>
     </v-form>
@@ -61,33 +83,46 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { createUser } from '@/services/UserService'
 import AuthCard from '@/components/auth/AuthCard.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
 const username = ref('')
+const email = ref('')
 const password = ref('')
+const confirmPassword = ref('')
 const errorMessage = ref('')
 const isLoading = ref(false)
 
-const login = async () => {
-  if (!username.value || !password.value) {
+const register = async () => {
+  if (!username.value || !email.value || !password.value || !confirmPassword.value) {
     errorMessage.value = 'Пожалуйста, заполните все поля'
+    return
+  }
+  
+  if (password.value !== confirmPassword.value) {
+    errorMessage.value = 'Пароли не совпадают'
     return
   }
   
   isLoading.value = true
   try {
-    const success = await userStore.login(username.value, password.value)
+    const user = await createUser({
+      username: username.value,
+      email: email.value,
+      password: password.value
+    })
     
-    if (success) {
-      router.push('/')
+    if (user) {
+      await userStore.setUser(user)
+      router.push('/profile')
     } else {
-      errorMessage.value = 'Неверное имя пользователя или пароль'
+      errorMessage.value = 'Ошибка при регистрации'
     }
   } catch (error) {
-    console.error('Ошибка при авторизации:', error)
-    errorMessage.value = 'Произошла ошибка при авторизации, попробуйте еще раз'
+    console.error('Ошибка при регистрации:', error)
+    errorMessage.value = 'Произошла ошибка при регистрации, попробуйте еще раз'
   } finally {
     isLoading.value = false
   }

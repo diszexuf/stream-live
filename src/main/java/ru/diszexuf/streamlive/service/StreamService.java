@@ -1,31 +1,27 @@
 package ru.diszexuf.streamlive.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.diszexuf.streamlive.dto.StreamDto;
-import ru.diszexuf.streamlive.model.Category;
 import ru.diszexuf.streamlive.model.Stream;
 import ru.diszexuf.streamlive.model.User;
-import ru.diszexuf.streamlive.repository.CategoryRepository;
 import ru.diszexuf.streamlive.repository.StreamRepository;
 import ru.diszexuf.streamlive.repository.UserRepository;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class StreamService {
     
     private final StreamRepository streamRepository;
     private final UserRepository userRepository;
-    private final CategoryRepository categoryRepository;
     private final UserService userService;
-    private final CategoryService categoryService;
-    
+
     public List<StreamDto> getAllStreams() {
         return streamRepository.findAll().stream()
                 .map(this::convertToDto)
@@ -38,7 +34,7 @@ public class StreamService {
                 .collect(Collectors.toList());
     }
     
-    public Optional<StreamDto> getStreamById(Long id) {
+    public Optional<StreamDto> getStreamById(UUID id) {
         return streamRepository.findById(id)
                 .map(this::convertToDto);
     }
@@ -51,22 +47,32 @@ public class StreamService {
                 .orElse(List.of());
     }
     
-    public List<StreamDto> getStreamsByCategory(Long categoryId) {
-        return categoryRepository.findById(categoryId)
-                .map(category -> streamRepository.findByCategory(category).stream()
-                        .map(this::convertToDto)
-                        .collect(Collectors.toList()))
-                .orElse(List.of());
+    public List<StreamDto> searchStreams(String query) {
+        log.info("Searching streams with query: {}", query);
+        if (query.startsWith("#")) {
+            String tag = query.substring(1).toLowerCase();
+            return streamRepository.findByTag(tag).stream()
+                    .map(this::convertToDto)
+                    .collect(Collectors.toList());
+        } else {
+            return streamRepository.findByTitleContainingIgnoreCase(query).stream()
+                    .map(this::convertToDto)
+                    .collect(Collectors.toList());
+        }
+    }
+
+    public List<String> getPopularTags() {
+        return streamRepository.findPopularTags();
     }
     
-    public Optional<StreamDto> createStream(Stream stream, UUID userId, Long categoryId) {
+    public Optional<StreamDto> createStream(Stream stream, UUID userId) {
+        log.info("Creating stream for user: {}", userId);
         Optional<User> userOpt = userRepository.findById(userId);
-        Optional<Category> categoryOpt = categoryRepository.findById(categoryId);
-        
-        if (userOpt.isPresent() && categoryOpt.isPresent()) {
+
+        if (userOpt.isPresent()) {
             stream.setUser(userOpt.get());
-            stream.setCategory(categoryOpt.get());
-            stream.setStreamKey(generateStreamKey(userId.toString()));
+            stream.setStreamKey(generateStreamKey(userId));
+            stream.setViewersCount(0);
             Stream savedStream = streamRepository.save(stream);
             return Optional.of(convertToDto(savedStream));
         }
@@ -74,28 +80,25 @@ public class StreamService {
         return Optional.empty();
     }
     
-    public Optional<StreamDto> updateStream(Long id, Stream updatedStream) {
+    public Optional<StreamDto> updateStream(UUID id, Stream updatedStream) {
+        log.info("Updating stream: {}", id);
         return streamRepository.findById(id)
                 .map(stream -> {
                     stream.setTitle(updatedStream.getTitle());
                     stream.setDescription(updatedStream.getDescription());
-                    stream.setThumbnail(updatedStream.getThumbnail());
-                    stream.setPrivate(updatedStream.isPrivate());
-                    
-                    if (updatedStream.getCategory() != null) {
-                        categoryRepository.findById(updatedStream.getCategory().getId())
-                                .ifPresent(stream::setCategory);
-                    }
-                    
+                    stream.setThumbnailUrl(updatedStream.getThumbnailUrl());
+                    stream.setTags(updatedStream.getTags());
+
                     return streamRepository.save(stream);
                 })
                 .map(this::convertToDto);
     }
     
-    public Optional<StreamDto> startStream(Long id) {
+    public Optional<StreamDto> startStream(UUID id) {
+        log.info("Starting stream: {}", id);
         return streamRepository.findById(id)
                 .map(stream -> {
-                    stream.setLive(true);
+                    stream.setIsLive(true);
                     stream.setStartedAt(LocalDateTime.now());
                     stream.setViewersCount(0);
                     return streamRepository.save(stream);
@@ -103,17 +106,19 @@ public class StreamService {
                 .map(this::convertToDto);
     }
     
-    public Optional<StreamDto> endStream(Long id) {
+    public Optional<StreamDto> endStream(UUID id) {
+        log.info("Ending stream: {}", id);
         return streamRepository.findById(id)
                 .map(stream -> {
-                    stream.setLive(false);
+                    stream.setIsLive(false);
                     stream.setEndedAt(LocalDateTime.now());
                     return streamRepository.save(stream);
                 })
                 .map(this::convertToDto);
     }
     
-    public boolean deleteStream(Long id) {
+    public boolean deleteStream(UUID id) {
+        log.info("Deleting stream: {}", id);
         if (streamRepository.existsById(id)) {
             streamRepository.deleteById(id);
             return true;
@@ -121,38 +126,19 @@ public class StreamService {
         return false;
     }
     
-    public Optional<String> resetStreamKey(Long streamId, UUID userId) {
+    public Optional<String> resetStreamKey(UUID streamId, UUID userId) {
+        log.info("Resetting stream key for stream: {} and user: {}", streamId, userId);
         return streamRepository.findById(streamId)
                 .filter(stream -> stream.getUser().getId().equals(userId))
                 .map(stream -> {
-                    String newKey = generateStreamKey(userId.toString());
+                    String newKey = generateStreamKey(userId);
                     stream.setStreamKey(newKey);
                     streamRepository.save(stream);
                     return newKey;
                 });
     }
-    
-    public Optional<StreamDto> updateViewerCount(Long streamId, int delta) {
-        return streamRepository.findById(streamId)
-                .map(stream -> {
-                    if (stream.isLive()) {
-                        int newCount = Math.max(0, stream.getViewersCount() + delta);
-                        stream.setViewersCount(newCount);
-                        
-                        // Также обновляем счетчик зрителей в категории
-                        if (stream.getCategory() != null) {
-                            categoryService.updateViewersCount(stream.getCategory().getId(), delta);
-                        }
-                        
-                        return streamRepository.save(stream);
-                    }
-                    return stream;
-                })
-                .map(this::convertToDto);
-    }
-    
-    private String generateStreamKey(String userId) {
-        // Простая реализация для демо. В реальности нужен более надежный способ
+
+    private String generateStreamKey(UUID userId) {
         return "stream_" + userId + "_" + System.currentTimeMillis();
     }
     
@@ -162,12 +148,13 @@ public class StreamService {
                 userService.convertToDto(stream.getUser()),
                 stream.getTitle(),
                 stream.getDescription(),
-                stream.getThumbnail(),
-                categoryService.convertToDto(stream.getCategory()),
-                stream.isLive(),
+                stream.getThumbnailUrl(),
+                stream.getStreamKey(),
+                stream.getTags(),
+                stream.getIsLive(),
                 stream.getViewersCount(),
-                stream.isPrivate(),
-                stream.getStartedAt()
+                stream.getStartedAt(),
+                stream.getEndedAt()
         );
     }
 } 
