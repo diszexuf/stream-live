@@ -1,4 +1,4 @@
-package ru.diszexuf.streamlive.dto;
+package ru.diszexuf.streamlive.old.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

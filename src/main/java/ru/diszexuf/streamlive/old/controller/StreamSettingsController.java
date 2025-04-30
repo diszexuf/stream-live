@@ -1,4 +1,4 @@
-package ru.diszexuf.streamlive.controller;
+package ru.diszexuf.streamlive.old.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

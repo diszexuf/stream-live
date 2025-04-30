@@ -1,4 +1,4 @@
-package ru.diszexuf.streamlive.model;
+package ru.diszexuf.streamlive.old.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
@@ -27,5 +27,4 @@ public abstract class CoreEntity {
     @Column(name = "version", nullable = false)
     private Long version;
 
-    public abstract Object getId();
 }

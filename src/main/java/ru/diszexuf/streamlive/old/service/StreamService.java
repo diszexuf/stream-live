@@ -1,13 +1,13 @@
-package ru.diszexuf.streamlive.service;
+package ru.diszexuf.streamlive.old.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import ru.diszexuf.streamlive.dto.StreamDto;
-import ru.diszexuf.streamlive.model.Stream;
-import ru.diszexuf.streamlive.model.User;
-import ru.diszexuf.streamlive.repository.StreamRepository;
-import ru.diszexuf.streamlive.repository.UserRepository;
+import ru.diszexuf.streamlive.old.dto.StreamDto;
+import ru.diszexuf.streamlive.old.model.Stream;
+import ru.diszexuf.streamlive.old.model.User;
+import ru.diszexuf.streamlive.old.repository.StreamRepository;
+import ru.diszexuf.streamlive.old.repository.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -60,10 +60,6 @@ public class StreamService {
                     .collect(Collectors.toList());
         }
     }
-
-    public List<String> getPopularTags() {
-        return streamRepository.findPopularTags();
-    }
     
     public Optional<StreamDto> createStream(Stream stream, UUID userId) {
         log.info("Creating stream for user: {}", userId);
@@ -71,7 +67,7 @@ public class StreamService {
 
         if (userOpt.isPresent()) {
             stream.setUser(userOpt.get());
-            stream.setStreamKey(generateStreamKey(userId));
+            stream.setStreamKey(generateStreamKey());
             stream.setViewersCount(0);
             Stream savedStream = streamRepository.save(stream);
             return Optional.of(convertToDto(savedStream));
@@ -126,20 +122,20 @@ public class StreamService {
         return false;
     }
     
-    public Optional<String> resetStreamKey(UUID streamId, UUID userId) {
+    public Optional<UUID> resetStreamKey(UUID streamId, UUID userId) {
         log.info("Resetting stream key for stream: {} and user: {}", streamId, userId);
         return streamRepository.findById(streamId)
                 .filter(stream -> stream.getUser().getId().equals(userId))
                 .map(stream -> {
-                    String newKey = generateStreamKey(userId);
+                    UUID newKey = generateStreamKey();
                     stream.setStreamKey(newKey);
                     streamRepository.save(stream);
                     return newKey;
                 });
     }
 
-    private String generateStreamKey(UUID userId) {
-        return "stream_" + userId + "_" + System.currentTimeMillis();
+    private UUID generateStreamKey() {
+        return UUID.randomUUID();
     }
     
     public StreamDto convertToDto(Stream stream) {

@@ -1,11 +1,8 @@
-package ru.diszexuf.streamlive.model;
+package ru.diszexuf.streamlive.old.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -26,19 +23,19 @@ public class User extends CoreEntity {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
-    @Column(name = "username", unique = true, nullable = false, length = 50)
+    @Column(name = "username", unique = true, nullable = false)
     private String username;
 
     @Column(name = "stream_key", unique = true, nullable = false, updatable = false)
     private UUID streamKey;
 
-    @Column(name = "email", unique = true, nullable = false, length = 100)
+    @Column(name = "email", unique = true, nullable = false)
     private String email;
 
-    @Column(name = "password_hash", nullable = false, length = 128)
+    @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    @Column(name = "avatar_url", length = 255)
+    @Column(name = "avatar_url")
     private String avatarUrl;
 
     @Column(name = "bio", columnDefinition = "TEXT")
@@ -46,10 +43,5 @@ public class User extends CoreEntity {
 
     @Column(name = "follower_count", nullable = false, columnDefinition = "INT DEFAULT 0")
     private Integer followerCount;
-
-    @Override
-    public UUID getId() {
-        return id;
-    }
 
 }

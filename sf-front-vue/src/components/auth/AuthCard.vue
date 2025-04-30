@@ -1,3 +1,12 @@
+<script setup>
+defineProps({
+  title: {
+    type: String,
+    required: true
+  }
+})
+</script>
+
 <template>
   <div class="auth-wrapper">
     <v-card class="auth-card" elevation="3">
@@ -11,15 +20,6 @@
     </v-card>
   </div>
 </template>
-
-<script setup>
-defineProps({
-  title: {
-    type: String,
-    required: true
-  }
-})
-</script>
 
 <style scoped>
 .auth-wrapper {

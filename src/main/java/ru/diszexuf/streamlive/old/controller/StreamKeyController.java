@@ -1,9 +1,9 @@
-package ru.diszexuf.streamlive.controller;
+package ru.diszexuf.streamlive.old.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.diszexuf.streamlive.service.StreamService;
+import ru.diszexuf.streamlive.old.service.StreamService;
 
 import java.util.UUID;
 

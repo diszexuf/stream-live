@@ -1,10 +1,7 @@
-package ru.diszexuf.streamlive.model;
+package ru.diszexuf.streamlive.old.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "follows",
@@ -35,7 +32,4 @@ public class Follow extends CoreEntity {
     @JoinColumn(name = "following_id", nullable = false, foreignKey = @ForeignKey(name = "fk_follow_following"))
     private User following;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false, nullable = false)
-    private LocalDateTime createdAt;
 }

@@ -26,6 +26,7 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.instancio:instancio-core:5.3.0'
 
     compileOnly 'org.projectlombok:lombok'
 

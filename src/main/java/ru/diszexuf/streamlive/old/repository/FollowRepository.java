@@ -1,9 +1,9 @@
-package ru.diszexuf.streamlive.repository;
+package ru.diszexuf.streamlive.old.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-import ru.diszexuf.streamlive.model.Follow;
-import ru.diszexuf.streamlive.model.User;
+import ru.diszexuf.streamlive.old.model.Follow;
+import ru.diszexuf.streamlive.old.model.User;
 
 import java.util.List;
 import java.util.Optional;

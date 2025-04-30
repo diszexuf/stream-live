@@ -1,11 +1,11 @@
-package ru.diszexuf.streamlive.service;
+package ru.diszexuf.streamlive.old.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import ru.diszexuf.streamlive.dto.UserDto;
-import ru.diszexuf.streamlive.model.User;
-import ru.diszexuf.streamlive.repository.UserRepository;
+import ru.diszexuf.streamlive.user.dto.UserGetRequest;
+import ru.diszexuf.streamlive.old.model.User;
+import ru.diszexuf.streamlive.old.repository.UserRepository;
 
 import java.util.List;
 import java.util.Optional;
@@ -19,32 +19,32 @@ public class UserService {
 
   private final UserRepository userRepository;
 
-  public List<UserDto> getAllUsers() {
+  public List<UserGetRequest> getAllUsers() {
     log.info("Fetching all users");
     return userRepository.findAll().stream()
         .map(this::convertToDto)
         .collect(Collectors.toList());
   }
 
-  public Optional<UserDto> getUserById(UUID id) {
+  public Optional<UserGetRequest> getUserById(UUID id) {
     log.info("Fetching user by ID: {}", id);
     return userRepository.findById(id)
         .map(this::convertToDto);
   }
 
-  public Optional<UserDto> getUserByUsername(String username) {
+  public Optional<UserGetRequest> getUserByUsername(String username) {
     log.info("Fetching user by username: {}", username);
     return userRepository.findByUsername(username)
         .map(this::convertToDto);
   }
 
-  public UserDto createUser(User user) {
+  public UserGetRequest createUser(User user) {
     log.info("Creating user: {}", user.getUsername());
     User savedUser = userRepository.save(user);
     return convertToDto(savedUser);
   }
 
-  public Optional<UserDto> updateUser(UUID id, User updatedUser) {
+  public Optional<UserGetRequest> updateUser(UUID id, User updatedUser) {
     log.info("Updating user with ID: {}", id);
     return userRepository.findById(id)
         .map(user -> {
@@ -66,8 +66,8 @@ public class UserService {
     return false;
   }
 
-  public UserDto convertToDto(User user) {
-    return new UserDto(
+  public UserGetRequest convertToDto(User user) {
+    return new UserGetRequest(
         user.getId(),
         user.getUsername(),
         user.getEmail(),
@@ -80,7 +80,7 @@ public class UserService {
   }
 
   // Простая проверка данных для входа (в реальном приложении здесь была бы проверка хэшей паролей)
-  public Optional<UserDto> authenticateUser(String username, String password) {
+  public Optional<UserGetRequest> authenticateUser(String username, String password) {
     log.info("Authenticating user: {}", username);
     return userRepository.findByUsername(username)
         .filter(user -> user.getPasswordHash().equals(password))

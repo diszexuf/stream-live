@@ -1,12 +1,12 @@
-package ru.diszexuf.streamlive.controller;
+package ru.diszexuf.streamlive.old.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.diszexuf.streamlive.dto.StreamDto;
-import ru.diszexuf.streamlive.model.Stream;
-import ru.diszexuf.streamlive.service.StreamService;
+import ru.diszexuf.streamlive.old.dto.StreamDto;
+import ru.diszexuf.streamlive.old.model.Stream;
+import ru.diszexuf.streamlive.old.service.StreamService;
 
 import java.util.List;
 import java.util.UUID;
@@ -45,11 +45,6 @@ public class StreamController {
     @GetMapping("/search")
     public ResponseEntity<List<StreamDto>> searchStreams(@RequestParam String query) {
         return ResponseEntity.ok(streamService.searchStreams(query));
-    }
-    
-    @GetMapping("/tags/popular")
-    public ResponseEntity<List<String>> getPopularTags() {
-        return ResponseEntity.ok(streamService.getPopularTags());
     }
     
     @PostMapping
@@ -91,7 +86,7 @@ public class StreamController {
     }
     
     @PostMapping("/{id}/reset-key")
-    public ResponseEntity<String> resetStreamKey(
+    public ResponseEntity<UUID> resetStreamKey(
             @PathVariable UUID id,
             @RequestParam UUID userId) {
         return streamService.resetStreamKey(id, userId)
