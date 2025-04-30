@@ -1,4 +1,4 @@
-package ru.diszexuf.streamlive.old.model;
+package ru.diszexuf.streamlive.common;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;

@@ -5,9 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.diszexuf.streamlive.old.dto.StreamDto;
 import ru.diszexuf.streamlive.old.model.Stream;
-import ru.diszexuf.streamlive.old.model.User;
+import ru.diszexuf.streamlive.user.User;
 import ru.diszexuf.streamlive.old.repository.StreamRepository;
-import ru.diszexuf.streamlive.old.repository.UserRepository;
+import ru.diszexuf.streamlive.user.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -20,7 +20,6 @@ public class StreamService {
     
     private final StreamRepository streamRepository;
     private final UserRepository userRepository;
-    private final UserService userService;
 
     public List<StreamDto> getAllStreams() {
         return streamRepository.findAll().stream()

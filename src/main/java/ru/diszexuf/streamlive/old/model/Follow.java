@@ -2,6 +2,8 @@ package ru.diszexuf.streamlive.old.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import ru.diszexuf.streamlive.common.CoreEntity;
+import ru.diszexuf.streamlive.user.User;
 
 @Entity
 @Table(name = "follows",

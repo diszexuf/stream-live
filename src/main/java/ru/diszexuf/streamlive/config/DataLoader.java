@@ -7,10 +7,10 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import ru.diszexuf.streamlive.old.model.Follow;
 import ru.diszexuf.streamlive.old.model.Stream;
-import ru.diszexuf.streamlive.old.model.User;
+import ru.diszexuf.streamlive.user.User;
 import ru.diszexuf.streamlive.old.repository.FollowRepository;
 import ru.diszexuf.streamlive.old.repository.StreamRepository;
-import ru.diszexuf.streamlive.old.repository.UserRepository;
+import ru.diszexuf.streamlive.user.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.*;

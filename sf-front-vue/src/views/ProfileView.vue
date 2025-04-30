@@ -49,14 +49,7 @@
 
           <v-window-item value="security">
             <v-form @submit.prevent="changePassword">
-              <v-text-field
-                v-model="securityData.currentPassword"
-                label="Текущий пароль"
-                type="password"
-                required
-                class="mb-4"
-              ></v-text-field>
-              
+
               <v-text-field
                 v-model="securityData.newPassword"
                 label="Новый пароль"
@@ -148,7 +141,6 @@ export default {
     })
     
     const securityData = reactive({
-      currentPassword: '',
       newPassword: '',
       confirmPassword: ''
     })

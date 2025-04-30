@@ -1,7 +1,8 @@
-package ru.diszexuf.streamlive.old.model;
+package ru.diszexuf.streamlive.user;
 
 import jakarta.persistence.*;
 import lombok.*;
+import ru.diszexuf.streamlive.common.CoreEntity;
 
 import java.util.UUID;
 
