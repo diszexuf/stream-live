@@ -1,13 +1,12 @@
-package ru.diszexuf.streamlive.old.service;
+package ru.diszexuf.streamlive.stream;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import ru.diszexuf.streamlive.old.dto.StreamDto;
-import ru.diszexuf.streamlive.old.model.Stream;
+import ru.diszexuf.streamlive.stream.dto.StreamDto;
 import ru.diszexuf.streamlive.user.User;
-import ru.diszexuf.streamlive.old.repository.StreamRepository;
 import ru.diszexuf.streamlive.user.UserRepository;
+import ru.diszexuf.streamlive.user.dto.UserGetRequest;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -140,7 +139,7 @@ public class StreamService {
     public StreamDto convertToDto(Stream stream) {
         return new StreamDto(
                 stream.getId(),
-                userService.convertToDto(stream.getUser()),
+                new UserGetRequest(),
                 stream.getTitle(),
                 stream.getDescription(),
                 stream.getThumbnailUrl(),

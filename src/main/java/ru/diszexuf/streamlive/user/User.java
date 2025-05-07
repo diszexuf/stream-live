@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import ru.diszexuf.streamlive.common.CoreEntity;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -27,14 +29,20 @@ public class User extends CoreEntity {
     @Column(name = "username", unique = true, nullable = false)
     private String username;
 
-    @Column(name = "stream_key", unique = true, nullable = false, updatable = false)
+    @Column(name = "password", nullable = false)
+    private String password;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    private Set<String> authorities = new HashSet<>();
+
+    @Column(name = "enabled", nullable = false)
+    private boolean enabled = true;
+
+    @Column(name = "stream_key", unique = true, nullable = false)
     private UUID streamKey;
 
     @Column(name = "email", unique = true, nullable = false)
     private String email;
-
-    @Column(name = "password_hash", nullable = false)
-    private String passwordHash;
 
     @Column(name = "avatar_url")
     private String avatarUrl;

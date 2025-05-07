@@ -66,11 +66,9 @@ public class UserController {
     return ResponseEntity.ok(updateUserStreamKeyUseCase.execute(id));
   }
 
-//  @PostMapping("/login")
-//  public ResponseEntity<UserGetRequest> login(@RequestParam String username, @RequestParam String password) {
-//    return userService.authenticateUser(username, password)
-//            .map(ResponseEntity::ok)
-//            .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
-//  }
+  @PostMapping("/login")
+  public ResponseEntity<UserGetRequest> login(@RequestParam String username, @RequestParam String password) {
+    return ResponseEntity.ok(new UserGetRequest());
+  }
 
 }

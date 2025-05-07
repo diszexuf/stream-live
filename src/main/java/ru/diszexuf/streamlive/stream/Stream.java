@@ -1,4 +1,4 @@
-package ru.diszexuf.streamlive.old.model;
+package ru.diszexuf.streamlive.stream;
 
 import jakarta.persistence.*;
 import lombok.*;

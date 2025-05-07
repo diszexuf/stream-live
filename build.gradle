@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.4.4'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.openapi.generator' version '7.7.0'
 }
 
 group = 'ru.diszexuf'
@@ -33,6 +34,7 @@ dependencies {
 
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
     annotationProcessor 'org.projectlombok:lombok'
 
     runtimeOnly 'org.postgresql:postgresql'
@@ -42,6 +44,47 @@ dependencies {
 
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+
+//sourceSets {
+//    main {
+//        java {
+//            srcDir 'build/generated/src/main/java'
+//        }
+//    }
+//}
+//
+//openApiGenerate {
+//    generatorName = 'spring'
+//    inputSpec = file('src/main/resources/openapi.yaml').absolutePath
+//    outputDir = file('build/generated').absolutePath
+//    apiPackage = 'ru.diszexuf.streamlive.api'
+//    modelPackage = 'ru.diszexuf.streamlive.model'
+//    invokerPackage = 'ru.diszexuf.streamlive.invoker'
+//    modelNameSuffix = 'Dto'
+//
+//    configOptions = [
+//            interfaceOnly        : 'true',
+//            useOptional          : 'false',
+//            dateLibrary          : 'java8',
+//            implementationPackage: '',
+//            skipDefaultInterface : 'true',
+//            useTags              : 'true',
+//            useSpringValidation  : 'true'
+//    ]
+//}
+//
+//
+//tasks.register('cleanOpenApiGenerate', Delete) {
+//    delete file('build/generated')
+//}
+//
+//tasks.named("openApiGenerate") {
+//    dependsOn cleanOpenApiGenerate
+//}
+//
+//tasks.named("compileJava").configure {
+//    dependsOn("openApiGenerate")
+//}
 
 tasks.named('test') {
     useJUnitPlatform()

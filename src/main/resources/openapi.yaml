@@ -1,0 +1,35 @@
+openapi: 3.0.3
+info:
+  title: API for Streaming Service
+  version: 1.0.0
+  description: |
+    API for managing users and their streaming activities
+tags:
+  - name: users
+    description: operations on users
+  - name: streams
+    description: operations on streams
+servers:
+  - url: /api
+    description: Local dev platform
+paths:
+
+components:
+  schemas:
+
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    StreamId:
+      name: streamId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid

@@ -1,7 +1,7 @@
 <template>
   <v-container>
     <h1 class="text-h4 mb-4">Профиль пользователя</h1>
-    
+
     <v-card>
       <v-card-item>
         <v-avatar size="100" class="mr-4">
@@ -22,27 +22,27 @@
           <v-window-item value="info">
             <v-form @submit.prevent="saveProfile">
               <v-text-field
-                v-model="userProfile.username"
-                label="Имя пользователя"
-                required
-                class="mb-4"
+                  v-model="userProfile.username"
+                  label="Имя пользователя"
+                  required
+                  class="mb-4"
               ></v-text-field>
-              
+
               <v-text-field
-                v-model="userProfile.email"
-                label="Email"
-                type="email"
-                required
-                class="mb-4"
+                  v-model="userProfile.email"
+                  label="Email"
+                  type="email"
+                  required
+                  class="mb-4"
               ></v-text-field>
-              
+
               <v-textarea
-                v-model="userProfile.bio"
-                label="О себе"
-                rows="4"
-                class="mb-4"
+                  v-model="userProfile.bio"
+                  label="О себе"
+                  rows="4"
+                  class="mb-4"
               ></v-textarea>
-              
+
               <v-btn type="submit">Сохранить изменения</v-btn>
             </v-form>
           </v-window-item>
@@ -51,21 +51,21 @@
             <v-form @submit.prevent="changePassword">
 
               <v-text-field
-                v-model="securityData.newPassword"
-                label="Новый пароль"
-                type="password"
-                required
-                class="mb-4"
+                  v-model="securityData.newPassword"
+                  label="Новый пароль"
+                  type="password"
+                  required
+                  class="mb-4"
               ></v-text-field>
-              
+
               <v-text-field
-                v-model="securityData.confirmPassword"
-                label="Подтвердите пароль"
-                type="password"
-                required
-                class="mb-4"
+                  v-model="securityData.confirmPassword"
+                  label="Подтвердите пароль"
+                  type="password"
+                  required
+                  class="mb-4"
               ></v-text-field>
-              
+
               <v-btn type="submit">Изменить пароль</v-btn>
             </v-form>
           </v-window-item>
@@ -77,11 +77,11 @@
                 <v-row>
                   <v-col cols="12" sm="8">
                     <v-text-field
-                      v-model="streamData.streamKey"
-                      readonly
-                      variant="outlined"
-                      density="compact"
-                      hide-details
+                        v-model="streamData.streamKey"
+                        readonly
+                        variant="outlined"
+                        density="compact"
+                        hide-details
                     ></v-text-field>
                   </v-col>
                   <v-col cols="12" sm="4" class="d-flex gap-2">
@@ -103,18 +103,18 @@
 
             <v-form @submit.prevent="saveStreamSettings">
               <v-text-field
-                v-model="streamData.defaultTitle"
-                label="Название стрима по умолчанию"
-                class="mb-4"
+                  v-model="streamData.defaultTitle"
+                  label="Название стрима по умолчанию"
+                  class="mb-4"
               ></v-text-field>
-              
+
               <v-select
-                v-model="streamData.defaultCategory"
-                :items="categories"
-                label="Категория по умолчанию"
-                class="mb-4"
+                  v-model="streamData.defaultCategory"
+                  :items="categories"
+                  label="Категория по умолчанию"
+                  class="mb-4"
               ></v-select>
-              
+
               <v-btn type="submit">Сохранить настройки</v-btn>
             </v-form>
           </v-window-item>
@@ -125,7 +125,7 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted } from 'vue'
+import {ref, reactive, onMounted} from 'vue'
 import axios from 'axios'
 
 export default {
@@ -139,21 +139,21 @@ export default {
       avatar: '',
       followersCount: 0
     })
-    
+
     const securityData = reactive({
       newPassword: '',
       confirmPassword: ''
     })
-    
+
     const streamData = reactive({
       streamKey: '',
       defaultTitle: '',
       defaultCategory: ''
     })
-    
+
     const categories = ref([])
     const apiUrl = 'http://localhost:8080/api'
-    
+
     const fetchUserProfile = async () => {
       try {
         const response = await axios.get(`${apiUrl}/users/profile`)
@@ -173,7 +173,7 @@ export default {
         userProfile.followersCount = 1024
       }
     }
-    
+
     const fetchStreamKey = async () => {
       try {
         const response = await axios.get(`${apiUrl}/stream/key`)
@@ -184,7 +184,7 @@ export default {
         streamData.streamKey = 'live_12345678_AbCdEfGhIjKlMnOpQrStUvWxYz'
       }
     }
-    
+
     const fetchStreamSettings = async () => {
       try {
         const response = await axios.get(`${apiUrl}/stream/settings`)
@@ -197,7 +197,7 @@ export default {
         streamData.defaultCategory = 'Игры'
       }
     }
-    
+
     const fetchCategories = async () => {
       try {
         const response = await axios.get(`${apiUrl}/categories`)
@@ -206,12 +206,12 @@ export default {
         console.error('Ошибка при получении категорий:', error)
         // Заглушка при ошибке
         categories.value = [
-          'Игры', 'Разговорный стрим', 'Музыка', 'Творчество', 
+          'Игры', 'Разговорный стрим', 'Музыка', 'Творчество',
           'Спорт', 'Наука и технологии', 'Программирование', 'Другое'
         ]
       }
     }
-    
+
     const saveProfile = async () => {
       try {
         await axios.put(`${apiUrl}/users/profile`, userProfile)
@@ -221,13 +221,13 @@ export default {
         alert('Не удалось сохранить профиль')
       }
     }
-    
+
     const changePassword = async () => {
       if (securityData.newPassword !== securityData.confirmPassword) {
         alert('Пароли не совпадают')
         return
       }
-      
+
       try {
         await axios.post(`${apiUrl}/users/change-password`, securityData)
         alert('Пароль изменен')
@@ -239,13 +239,13 @@ export default {
         alert('Не удалось изменить пароль')
       }
     }
-    
+
     const copyStreamKey = () => {
       navigator.clipboard.writeText(streamData.streamKey)
-        .then(() => alert('Ключ стрима скопирован в буфер обмена'))
-        .catch(error => console.error('Ошибка при копировании ключа стрима:', error))
+          .then(() => alert('Ключ стрима скопирован в буфер обмена'))
+          .catch(error => console.error('Ошибка при копировании ключа стрима:', error))
     }
-    
+
     const resetStreamKey = async () => {
       if (confirm('Вы уверены, что хотите сбросить ключ стрима? Текущий стрим будет прерван.')) {
         try {
@@ -258,7 +258,7 @@ export default {
         }
       }
     }
-    
+
     const saveStreamSettings = async () => {
       try {
         await axios.put(`${apiUrl}/stream/settings`, {
@@ -271,7 +271,7 @@ export default {
         alert('Не удалось сохранить настройки стрима')
       }
     }
-    
+
     onMounted(async () => {
       await Promise.all([
         fetchUserProfile(),
@@ -280,7 +280,7 @@ export default {
         fetchCategories()
       ])
     })
-    
+
     return {
       activeTab,
       userProfile,

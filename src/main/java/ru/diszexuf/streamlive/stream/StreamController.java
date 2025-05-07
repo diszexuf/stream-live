@@ -1,12 +1,10 @@
-package ru.diszexuf.streamlive.old.controller;
+package ru.diszexuf.streamlive.stream;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.diszexuf.streamlive.old.dto.StreamDto;
-import ru.diszexuf.streamlive.old.model.Stream;
-import ru.diszexuf.streamlive.old.service.StreamService;
+import ru.diszexuf.streamlive.stream.dto.StreamDto;
 
 import java.util.List;
 import java.util.UUID;

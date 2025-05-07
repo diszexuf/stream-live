@@ -1,3 +1,257 @@
+<script>
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import axios from 'axios'
+import { useUserStore } from '@/stores/user'
+import videojs from 'video.js'
+import 'video.js/dist/video-js.css'
+import '@videojs/http-streaming'
+
+export default {
+  name: 'StreamView',
+  setup() {
+    const route = useRoute()
+    const router = useRouter()
+    const userStore = useUserStore()
+    const stream = ref(null)
+    const updateInterval = ref(null)
+    const isLoading = ref(false)
+    const videoPlayer = ref(null)
+    const player = ref(null)
+    const apiUrl = 'http://localhost:8080/api'
+    const manualStreamKey = ref('')
+    const availableStreamKeys = ref('')
+
+    const isStreamer = computed(() => {
+      if (!userStore.user || !stream.value || !stream.value.user) {
+        return false
+      }
+      return userStore.user.id === stream.value.user.id
+    })
+
+    /* Закомментированная логика чата
+    const chatMessages = ref([
+      {
+        id: 1,
+        username: 'User1',
+        text: 'Привет всем!',
+        avatar: 'https://i.imgur.com/Q9WPlWA.jpg'
+      },
+      {
+        id: 2,
+        username: 'User2',
+        text: 'Какой классный стрим!',
+        avatar: 'https://i.imgur.com/OxWWm2g.jpg'
+      }
+    ])
+
+    const newMessage = ref('')
+    */
+
+    const fetchStream = async (id) => {
+      try {
+        const response = await axios.get(`${apiUrl}/streams/${id}`)
+        stream.value = response.data
+
+        // Если стрим активен, есть ключ и инициализирован плеер
+        if (stream.value.live && stream.value.streamKey && player.value) {
+          const hlsUrl = `http://localhost:8088/hls/${stream.value.streamKey}.m3u8`
+          player.value.src({ src: hlsUrl, type: 'application/x-mpegURL' })
+          player.value.play().catch(error => {
+            console.error('Ошибка автовоспроизведения:', error)
+          })
+        }
+      } catch (error) {
+        console.error('Ошибка при получении стрима:', error)
+        stream.value = null
+      }
+    }
+
+    // Инкрементируем счетчик зрителей, когда пользователь заходит на страницу
+    const incrementViewerCount = async (id) => {
+      try {
+        await axios.post(`${apiUrl}/streams/${id}/viewers?delta=1`)
+      } catch (error) {
+        console.error('Ошибка при обновлении счетчика зрителей:', error)
+      }
+    }
+
+    // Декрементируем счетчик зрителей, когда пользователь покидает страницу
+    const decrementViewerCount = async (id) => {
+      try {
+        await axios.post(`${apiUrl}/streams/${id}/viewers?delta=-1`)
+      } catch (error) {
+        console.error('Ошибка при обновлении счетчика зрителей:', error)
+      }
+    }
+
+    // Обновить используемый ключ стрима
+    const updateStreamKey = () => {
+      if (!manualStreamKey.value) return;
+
+      console.log(`Установлен ручной ключ стрима: ${manualStreamKey.value}`);
+
+      // Если плеер уже инициализирован, обновим источник
+      if (player.value) {
+        const hlsUrl = `http://localhost:8088/hls/${manualStreamKey.value}/index.m3u8`;
+        player.value.src({ src: hlsUrl, type: 'application/x-mpegURL' });
+        player.value.play().catch(error => {
+          console.error('Ошибка автовоспроизведения:', error);
+        });
+      } else {
+        // Иначе инициализируем заново
+        initVideoPlayer();
+      }
+    };
+
+    // Попробовать использовать тестовый ключ стрима
+    const tryTestStream = async () => {
+      manualStreamKey.value = 'live_12345678_AbCdEfGhIjKlMnOpQrStUvWxYz';
+      updateStreamKey();
+
+      // Получить список доступных потоков (для отладки)
+      try {
+        const response = await fetch('http://localhost:8088/stat');
+        const text = await response.text();
+        if (text) {
+          const regex = /hls\/([^"]+)/g;
+          const matches = [...text.matchAll(regex)];
+          if (matches.length) {
+            availableStreamKeys.value = matches.map(m => m[1]).join('\n');
+          } else {
+            availableStreamKeys.value = 'Активные потоки не найдены';
+          }
+        }
+      } catch (error) {
+        console.error('Ошибка при получении статистики:', error);
+        availableStreamKeys.value = 'Ошибка при получении статистики';
+      }
+    };
+
+    // Модифицированная инициализация видеоплеера
+    const initVideoPlayer = () => {
+      // Убеждаемся, что player еще не инициализирован
+      if (player.value) {
+        return;
+      }
+
+      if (!videoPlayer.value) {
+        console.warn('Не удалось инициализировать видеоплеер: отсутствует элемент проигрывателя');
+        return;
+      }
+
+      // Используем либо ключ с сервера, либо ручной ввод
+      const streamKey = manualStreamKey.value || (stream.value && stream.value.streamKey);
+      if (!streamKey) {
+        console.warn('Не удалось инициализировать видеоплеер: отсутствует ключ стрима');
+        return;
+      }
+
+      // Добавляем /index.m3u8 к пути для более надежного соединения
+      const hlsUrl = `http://localhost:8088/hls/${streamKey}/index.m3u8`;
+      console.log('Инициализация плеера с URL:', hlsUrl);
+
+      const options = {
+        fluid: true,
+        responsive: true,
+        sources: [{
+          src: hlsUrl,
+          type: 'application/x-mpegURL'
+        }],
+        autoplay: true,
+        controls: true,
+        preload: 'auto',
+        liveui: true
+      };
+
+      player.value = videojs(videoPlayer.value, options, () => {
+        console.log('Плеер VideoJS инициализирован');
+        player.value.play().catch(error => {
+          console.error('Ошибка автовоспроизведения:', error);
+        });
+      });
+    };
+
+    // Завершение стрима
+    const endStream = async () => {
+      if (!isStreamer.value || !stream.value || !stream.value.live) {
+        return
+      }
+
+      isLoading.value = true
+      try {
+        await axios.post(`${apiUrl}/streams/${stream.value.id}/end`)
+        await fetchStream(stream.value.id)
+        alert('Стрим успешно завершен')
+
+        // Останавливаем плеер
+        if (player.value) {
+          player.value.pause()
+        }
+      } catch (error) {
+        console.error('Ошибка при завершении стрима:', error)
+        alert('Не удалось завершить стрим. Попробуйте еще раз.')
+      } finally {
+        isLoading.value = false
+      }
+    }
+
+    onMounted(async () => {
+      const streamId = route.params.id
+      await fetchStream(streamId)
+
+      if (!userStore.user) {
+        await userStore.fetchUser()
+      }
+
+      if (stream.value) {
+        await incrementViewerCount(streamId)
+
+        // Периодическое обновление информации о стриме
+        updateInterval.value = setInterval(async () => {
+          await fetchStream(streamId)
+        }, 30000) // Обновляем каждые 30 секунд
+
+        // Инициализируем видеоплеер, если стрим активен
+        if (stream.value.live) {
+          initVideoPlayer()
+        }
+      }
+    })
+
+    onUnmounted(async () => {
+      if (updateInterval.value) {
+        clearInterval(updateInterval.value)
+      }
+
+      if (stream.value) {
+        await decrementViewerCount(route.params.id)
+      }
+
+      // Освобождаем ресурсы плеера
+      if (player.value) {
+        player.value.dispose()
+        player.value = null
+      }
+    })
+
+    return {
+      stream,
+      isStreamer,
+      isLoading,
+      endStream,
+      videoPlayer,
+      manualStreamKey,
+      updateStreamKey,
+      tryTestStream,
+      availableStreamKeys
+      // chatMessages,
+      // newMessage
+    }
+  }
+}
+</script>
+
 <template>
   <v-container fluid class="pa-0">
     <v-row no-gutters>
@@ -198,260 +452,6 @@
     </v-row>
   </v-container>
 </template>
-
-<script>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import axios from 'axios'
-import { useUserStore } from '@/stores/user'
-import videojs from 'video.js'
-import 'video.js/dist/video-js.css'
-import '@videojs/http-streaming'
-
-export default {
-  name: 'StreamView',
-  setup() {
-    const route = useRoute()
-    const router = useRouter()
-    const userStore = useUserStore()
-    const stream = ref(null)
-    const updateInterval = ref(null)
-    const isLoading = ref(false)
-    const videoPlayer = ref(null)
-    const player = ref(null)
-    const apiUrl = 'http://localhost:8080/api'
-    const manualStreamKey = ref('')
-    const availableStreamKeys = ref('')
-    
-    const isStreamer = computed(() => {
-      if (!userStore.user || !stream.value || !stream.value.user) {
-        return false
-      }
-      return userStore.user.id === stream.value.user.id
-    })
-    
-    /* Закомментированная логика чата
-    const chatMessages = ref([
-      {
-        id: 1,
-        username: 'User1',
-        text: 'Привет всем!',
-        avatar: 'https://i.imgur.com/Q9WPlWA.jpg'
-      },
-      {
-        id: 2,
-        username: 'User2',
-        text: 'Какой классный стрим!',
-        avatar: 'https://i.imgur.com/OxWWm2g.jpg'
-      }
-    ])
-    
-    const newMessage = ref('')
-    */
-    
-    const fetchStream = async (id) => {
-      try {
-        const response = await axios.get(`${apiUrl}/streams/${id}`)
-        stream.value = response.data
-        
-        // Если стрим активен, есть ключ и инициализирован плеер
-        if (stream.value.live && stream.value.streamKey && player.value) {
-          const hlsUrl = `http://localhost:8088/hls/${stream.value.streamKey}.m3u8`
-          player.value.src({ src: hlsUrl, type: 'application/x-mpegURL' })
-          player.value.play().catch(error => {
-            console.error('Ошибка автовоспроизведения:', error)
-          })
-        }
-      } catch (error) {
-        console.error('Ошибка при получении стрима:', error)
-        stream.value = null
-      }
-    }
-    
-    // Инкрементируем счетчик зрителей, когда пользователь заходит на страницу
-    const incrementViewerCount = async (id) => {
-      try {
-        await axios.post(`${apiUrl}/streams/${id}/viewers?delta=1`)
-      } catch (error) {
-        console.error('Ошибка при обновлении счетчика зрителей:', error)
-      }
-    }
-    
-    // Декрементируем счетчик зрителей, когда пользователь покидает страницу
-    const decrementViewerCount = async (id) => {
-      try {
-        await axios.post(`${apiUrl}/streams/${id}/viewers?delta=-1`)
-      } catch (error) {
-        console.error('Ошибка при обновлении счетчика зрителей:', error)
-      }
-    }
-    
-    // Обновить используемый ключ стрима
-    const updateStreamKey = () => {
-      if (!manualStreamKey.value) return;
-      
-      console.log(`Установлен ручной ключ стрима: ${manualStreamKey.value}`);
-      
-      // Если плеер уже инициализирован, обновим источник
-      if (player.value) {
-        const hlsUrl = `http://localhost:8088/hls/${manualStreamKey.value}/index.m3u8`;
-        player.value.src({ src: hlsUrl, type: 'application/x-mpegURL' });
-        player.value.play().catch(error => {
-          console.error('Ошибка автовоспроизведения:', error);
-        });
-      } else {
-        // Иначе инициализируем заново
-        initVideoPlayer();
-      }
-    };
-    
-    // Попробовать использовать тестовый ключ стрима
-    const tryTestStream = async () => {
-      manualStreamKey.value = 'live_12345678_AbCdEfGhIjKlMnOpQrStUvWxYz';
-      updateStreamKey();
-      
-      // Получить список доступных потоков (для отладки)
-      try {
-        const response = await fetch('http://localhost:8088/stat');
-        const text = await response.text();
-        if (text) {
-          const regex = /hls\/([^"]+)/g;
-          const matches = [...text.matchAll(regex)];
-          if (matches.length) {
-            availableStreamKeys.value = matches.map(m => m[1]).join('\n');
-          } else {
-            availableStreamKeys.value = 'Активные потоки не найдены';
-          }
-        }
-      } catch (error) {
-        console.error('Ошибка при получении статистики:', error);
-        availableStreamKeys.value = 'Ошибка при получении статистики';
-      }
-    };
-    
-    // Модифицированная инициализация видеоплеера
-    const initVideoPlayer = () => {
-      // Убеждаемся, что player еще не инициализирован
-      if (player.value) {
-        return;
-      }
-      
-      if (!videoPlayer.value) {
-        console.warn('Не удалось инициализировать видеоплеер: отсутствует элемент проигрывателя');
-        return;
-      }
-      
-      // Используем либо ключ с сервера, либо ручной ввод
-      const streamKey = manualStreamKey.value || (stream.value && stream.value.streamKey);
-      if (!streamKey) {
-        console.warn('Не удалось инициализировать видеоплеер: отсутствует ключ стрима');
-        return;
-      }
-      
-      // Добавляем /index.m3u8 к пути для более надежного соединения
-      const hlsUrl = `http://localhost:8088/hls/${streamKey}/index.m3u8`;
-      console.log('Инициализация плеера с URL:', hlsUrl);
-      
-      const options = {
-        fluid: true,
-        responsive: true,
-        sources: [{
-          src: hlsUrl,
-          type: 'application/x-mpegURL'
-        }],
-        autoplay: true,
-        controls: true,
-        preload: 'auto',
-        liveui: true
-      };
-      
-      player.value = videojs(videoPlayer.value, options, () => {
-        console.log('Плеер VideoJS инициализирован');
-        player.value.play().catch(error => {
-          console.error('Ошибка автовоспроизведения:', error);
-        });
-      });
-    };
-    
-    // Завершение стрима
-    const endStream = async () => {
-      if (!isStreamer.value || !stream.value || !stream.value.live) {
-        return
-      }
-      
-      isLoading.value = true
-      try {
-        await axios.post(`${apiUrl}/streams/${stream.value.id}/end`)
-        await fetchStream(stream.value.id)
-        alert('Стрим успешно завершен')
-        
-        // Останавливаем плеер
-        if (player.value) {
-          player.value.pause()
-        }
-      } catch (error) {
-        console.error('Ошибка при завершении стрима:', error)
-        alert('Не удалось завершить стрим. Попробуйте еще раз.')
-      } finally {
-        isLoading.value = false
-      }
-    }
-    
-    onMounted(async () => {
-      const streamId = route.params.id
-      await fetchStream(streamId)
-      
-      if (!userStore.user) {
-        await userStore.fetchUser()
-      }
-      
-      if (stream.value) {
-        await incrementViewerCount(streamId)
-        
-        // Периодическое обновление информации о стриме
-        updateInterval.value = setInterval(async () => {
-          await fetchStream(streamId)
-        }, 30000) // Обновляем каждые 30 секунд
-        
-        // Инициализируем видеоплеер, если стрим активен
-        if (stream.value.live) {
-          initVideoPlayer()
-        }
-      }
-    })
-    
-    onUnmounted(async () => {
-      if (updateInterval.value) {
-        clearInterval(updateInterval.value)
-      }
-      
-      if (stream.value) {
-        await decrementViewerCount(route.params.id)
-      }
-      
-      // Освобождаем ресурсы плеера
-      if (player.value) {
-        player.value.dispose()
-        player.value = null
-      }
-    })
-    
-    return {
-      stream,
-      isStreamer,
-      isLoading,
-      endStream,
-      videoPlayer,
-      manualStreamKey,
-      updateStreamKey,
-      tryTestStream,
-      availableStreamKeys
-      // chatMessages,
-      // newMessage
-    }
-  }
-}
-</script>
 
 <style scoped>
 .video-container {

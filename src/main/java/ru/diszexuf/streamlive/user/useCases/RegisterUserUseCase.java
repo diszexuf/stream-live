@@ -22,7 +22,7 @@ public class RegisterUserUseCase {
     User user = User.builder()
             .username(dto.getUsername())
             .email(dto.getEmail())
-            .passwordHash(dto.getPassword())
+            .password(dto.getPassword())
             .followerCount(0)
             .streamKey(UUID.randomUUID())
             .build();
