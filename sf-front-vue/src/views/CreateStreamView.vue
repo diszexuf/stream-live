@@ -1,8 +1,8 @@
 <script>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import {ref, onMounted} from 'vue'
+import {useRouter} from 'vue-router'
 import axios from 'axios'
-import { useUserStore } from '@/stores/user'
+import {useUserStore} from '@/stores/user'
 
 export default {
   name: 'CreateStreamView',
@@ -82,7 +82,7 @@ export default {
       <v-col cols="12" md="8" offset-md="2">
         <v-card>
           <v-card-title class="text-h4 mb-4">Начать стрим</v-card-title>
-          
+
           <v-card-text v-if="!userStore.isAuthenticated">
             <v-alert type="warning">
               Для создания стрима необходимо авторизоваться
@@ -91,40 +91,40 @@ export default {
               Войти в аккаунт
             </v-btn>
           </v-card-text>
-          
+
           <v-card-text v-else>
             <v-form @submit.prevent="startStream">
               <v-text-field
-                v-model="streamTitle"
-                label="Название стрима"
-                required
-                :rules="[v => !!v || 'Введите название стрима']"
-                class="mb-4"
+                  v-model="streamTitle"
+                  label="Название стрима"
+                  required
+                  :rules="[v => !!v || 'Введите название стрима']"
+                  class="mb-4"
               ></v-text-field>
-              
+
               <v-select
-                v-model="selectedCategoryId"
-                :items="categories"
-                item-title="name"
-                item-value="id"
-                label="Категория"
-                required
-                :rules="[v => !!v || 'Выберите категорию']"
-                class="mb-4"
+                  v-model="selectedCategoryId"
+                  :items="categories"
+                  item-title="name"
+                  item-value="id"
+                  label="Категория"
+                  required
+                  :rules="[v => !!v || 'Выберите категорию']"
+                  class="mb-4"
               ></v-select>
-              
+
               <v-textarea
-                v-model="streamDescription"
-                label="Описание"
-                rows="3"
-                class="mb-4"
+                  v-model="streamDescription"
+                  label="Описание"
+                  rows="3"
+                  class="mb-4"
               ></v-textarea>
-              
+
               <v-btn
-                color="primary"
-                type="submit"
-                block
-                :loading="isLoading"
+                  color="primary"
+                  type="submit"
+                  block
+                  :loading="isLoading"
               >
                 Начать стрим
               </v-btn>

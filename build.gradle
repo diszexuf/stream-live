@@ -29,6 +29,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.instancio:instancio-core:5.3.0'
     implementation 'org.mapstruct:mapstruct:1.5.5.Final'
+    implementation 'io.swagger.core.v3:swagger-annotations:2.2.30'
+
+    implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
+    implementation 'jakarta.annotation:jakarta.annotation-api:2.1.0'
 
     compileOnly 'org.projectlombok:lombok'
 
@@ -45,46 +49,48 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-//sourceSets {
-//    main {
-//        java {
-//            srcDir 'build/generated/src/main/java'
-//        }
-//    }
-//}
-//
-//openApiGenerate {
-//    generatorName = 'spring'
-//    inputSpec = file('src/main/resources/openapi.yaml').absolutePath
-//    outputDir = file('build/generated').absolutePath
-//    apiPackage = 'ru.diszexuf.streamlive.api'
-//    modelPackage = 'ru.diszexuf.streamlive.model'
-//    invokerPackage = 'ru.diszexuf.streamlive.invoker'
-//    modelNameSuffix = 'Dto'
-//
-//    configOptions = [
-//            interfaceOnly        : 'true',
-//            useOptional          : 'false',
-//            dateLibrary          : 'java8',
-//            implementationPackage: '',
-//            skipDefaultInterface : 'true',
-//            useTags              : 'true',
-//            useSpringValidation  : 'true'
-//    ]
-//}
-//
-//
-//tasks.register('cleanOpenApiGenerate', Delete) {
-//    delete file('build/generated')
-//}
-//
-//tasks.named("openApiGenerate") {
-//    dependsOn cleanOpenApiGenerate
-//}
-//
-//tasks.named("compileJava").configure {
-//    dependsOn("openApiGenerate")
-//}
+sourceSets {
+    main {
+        java {
+            srcDir 'build/generated/src/main/java'
+        }
+    }
+}
+
+openApiGenerate {
+    generatorName = 'spring'
+    inputSpec = file('src/main/resources/openapi.yaml').absolutePath
+    outputDir = file('build/generated').absolutePath
+    apiPackage = 'ru.diszexuf.streamlive.api'
+    modelPackage = 'ru.diszexuf.streamlive.model'
+    invokerPackage = 'ru.diszexuf.streamlive.invoker'
+    modelNameSuffix = 'Dto'
+
+    configOptions = [
+            interfaceOnly        : 'true',
+            useOptional          : 'false',
+            dateLibrary          : 'java8',
+            implementationPackage: '',
+            skipDefaultInterface : 'true',
+            useTags              : 'true',
+            useSpringValidation  : 'true',
+            library: 'spring-boot',
+            useJakartaEe: 'true',
+    ]
+}
+
+
+tasks.register('cleanOpenApiGenerate', Delete) {
+    delete file('build/generated')
+}
+
+tasks.named("openApiGenerate") {
+    dependsOn cleanOpenApiGenerate
+}
+
+tasks.named("compileJava").configure {
+    dependsOn("openApiGenerate")
+}
 
 tasks.named('test') {
     useJUnitPlatform()

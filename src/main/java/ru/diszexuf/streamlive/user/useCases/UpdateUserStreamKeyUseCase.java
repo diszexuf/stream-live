@@ -15,12 +15,11 @@ import java.util.UUID;
 public class UpdateUserStreamKeyUseCase {
   private final UserRepository userRepository;
 
-  public String execute(String id) {
-    User user = userRepository.findById(UUID.fromString(id))
+  public void execute(UUID id) {
+    User user = userRepository.findById(id)
             .orElseThrow(() -> new NoSuchElementException("No such user with id: " + id));
-    UUID newStreamKey = UUID.randomUUID();
+    UUID newStreamKey = UUID.randomUUID();      // todo: gen alg of stream key
     user.setStreamKey(newStreamKey);
     userRepository.save(user);
-    return newStreamKey.toString(); // todo: gen alg of stream key
   }
 }

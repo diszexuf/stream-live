@@ -4,19 +4,22 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
-import ru.diszexuf.streamlive.user.dto.UserGetRequest;
-import ru.diszexuf.streamlive.user.dto.UserRegisterRequest;
-import ru.diszexuf.streamlive.user.dto.UserUpdateRequest;
+import ru.diszexuf.streamlive.api.UsersApi;
+import ru.diszexuf.streamlive.model.UserAuthRequestDto;
+import ru.diszexuf.streamlive.model.UserGetRequestDto;
+import ru.diszexuf.streamlive.model.UserRegisterRequestDto;
+import ru.diszexuf.streamlive.model.UserUpdateRequestDto;
 import ru.diszexuf.streamlive.user.useCases.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 @CrossOrigin
-public class UserController {
+public class UserController implements UsersApi {
+
   private final GetAllUsersUseCase getAllUsersUseCase;
   private final GetUserByIdUseCase getUserByIdUseCase;
   private final GetUserByUsernameUseCase getUserByUsernameUseCase;
@@ -24,51 +27,49 @@ public class UserController {
   private final UpdateUserUseCase updateUserUseCase;
   private final DeleteUserUseCase deleteUserUseCase;
   private final UpdateUserStreamKeyUseCase updateUserStreamKeyUseCase;
+  private final LoginUserUseCase loginUserUseCase;
 
-  @GetMapping
-  public ResponseEntity<List<UserGetRequest>> getAllUsers() {
+  @Override
+  public ResponseEntity<Void> deleteUser(UUID userId) {
+    deleteUserUseCase.execute(userId);
+    return ResponseEntity.ok().build();
+  }
+
+  @Override
+  public ResponseEntity<UserGetRequestDto> getUserByUsername(String userUsername) {
+    return ResponseEntity.ok(getUserByUsernameUseCase.execute(userUsername));
+  }
+
+  @Override
+  public ResponseEntity<List<UserGetRequestDto>> getALlUsers() {
     return ResponseEntity.ok(getAllUsersUseCase.execute());
   }
 
-  @GetMapping("/{id}")
-  public ResponseEntity<UserGetRequest> getUserById(@PathVariable String id) {
-    return ResponseEntity.ok(getUserByIdUseCase.execute(id));
+  @Override
+  public ResponseEntity<UserGetRequestDto> getUserById(UUID userId) {
+    return ResponseEntity.ok(getUserByIdUseCase.execute(userId));
   }
 
-  @GetMapping("/username/{username}")
-  public ResponseEntity<UserGetRequest> getUserByUsername(@PathVariable String username) {
-    return ResponseEntity.ok(getUserByUsernameUseCase.execute(username));
+  @Override
+  public ResponseEntity<UserGetRequestDto> loginUser(UserAuthRequestDto userAuthRequestDto) {
+    return ResponseEntity.ok(loginUserUseCase.execute(userAuthRequestDto));
   }
 
-  @PostMapping
-  public ResponseEntity<UserGetRequest> registerUser(@RequestBody UserRegisterRequest dto) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(registerUserUseCase.execute(dto));
+  @Override
+  public ResponseEntity<UserGetRequestDto> registerUser(UserRegisterRequestDto userRegisterRequestDto) {
+    return ResponseEntity.status(HttpStatus.CREATED).body(registerUserUseCase.execute(userRegisterRequestDto));
   }
 
-  @PutMapping("/{id}")
-  public ResponseEntity<UserGetRequest> updateUser(@PathVariable String id, @RequestBody UserUpdateRequest dto) {
-    try {
-      UserGetRequest userGetRequest = updateUserUseCase.execute(id, dto);
-      return ResponseEntity.ok(userGetRequest);
-    } catch (Exception e) {
-      throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
-    }
+  @Override
+  public ResponseEntity<Void> updateStreamKey(UUID userId) {
+    updateUserStreamKeyUseCase.execute(userId);
+    return ResponseEntity.ok().build();
   }
 
-  @DeleteMapping("/{id}")
-  public ResponseEntity<Void> deleteUser(@PathVariable String id) {
-    deleteUserUseCase.execute(id);
-    return ResponseEntity.status(HttpStatus.OK).build();
-  }
-
-  @PutMapping("/{id}/streamkey")
-  public ResponseEntity<String> updateStreamKey(@PathVariable String id) {
-    return ResponseEntity.ok(updateUserStreamKeyUseCase.execute(id));
-  }
-
-  @PostMapping("/login")
-  public ResponseEntity<UserGetRequest> login(@RequestParam String username, @RequestParam String password) {
-    return ResponseEntity.ok(new UserGetRequest());
+  @Override
+  public ResponseEntity<Void> updateUser(UUID userId, UserUpdateRequestDto userUpdateRequestDto) {
+    updateUserUseCase.execute(userId, userUpdateRequestDto);
+    return ResponseEntity.ok().build();
   }
 
 }

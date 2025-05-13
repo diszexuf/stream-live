@@ -13,11 +13,211 @@ servers:
   - url: /api
     description: Local dev platform
 paths:
+#  /streams:
+#    get:
+#      tags: [streams]
+#      summary: List of all streams
+#      operationId: getAllStreams
+#      responses:
+#        200:
+#          description: 'success'
+#          content:
+#            application/json:
+#              schema:
+#                $ref: '#/components/schemas/GetStreamRequest'
+
+  /users:
+    get:
+      tags: [users]
+      operationId: getALlUsers
+      responses:
+        200:
+          description: 'success'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArrayUserGetRequest'
+    post:
+      tags: [users]
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegisterRequest'
+      responses:
+        201:
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserGetRequest'
+  /user/login:
+    post:
+      tags: [users]
+      operationId: loginUser
+      requestBody:
+        content:
+          application/schema:
+            schema:
+              $ref: '#/components/schemas/UserAuthRequest'
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserGetRequest'
+  /user/{id}:
+    get:
+      tags: [users]
+      operationId: getUserById
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserGetRequest'
+    put:
+      tags: [users]
+      operationId: updateUser
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        200:
+          description: profile updated
+    delete:
+      tags: [users]
+      operationId: deleteUser
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        204:
+          description: deleted
+  /users/{id}/streamkey:
+    put:
+      tags: [users]
+      operationId: updateStreamKey
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        200:
+          description: stream key updated
+  /users/{userUsername}:
+    get:
+      tags: [users]
+      operationId: getUserByUsername
+      parameters:
+        - $ref: '#/components/parameters/UserUsername'
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserGetRequest'
+
 
 components:
   schemas:
-
+    UserAuthRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+    UserRegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+    ArrayUserGetRequest:
+      type: array
+      items:
+        $ref: '#/components/schemas/UserGetRequest'
+    UserGetRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        bio:
+          type: string
+        streamKey:
+          type: string
+    UserUpdateRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        bio:
+          type: string
+    CreateStreamRequests:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+    GetStreamArrayRequest:
+      type: array
+      items:
+        $ref: '#/components/schemas/GetStreamRequest'
+    GetStreamRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        thumbnailUrl:
+          type: string
+        streamKey:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        isLive:
+          type: boolean
+        startedAt:
+          type: string
+        endedAt:
+          type: string
+      required: [id, userId, title, streamKey, isLive, startedAt]
   parameters:
+    UserUsername:
+      name: userUsername
+      in: path
+      required: true
+      schema:
+        type: string
     UserId:
       name: userId
       in: path
@@ -25,7 +225,6 @@ components:
       schema:
         type: string
         format: uuid
-
     StreamId:
       name: streamId
       in: path

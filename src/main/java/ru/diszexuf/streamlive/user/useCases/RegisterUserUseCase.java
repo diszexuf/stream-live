@@ -3,6 +3,8 @@ package ru.diszexuf.streamlive.user.useCases;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import ru.diszexuf.streamlive.common.UseCase;
+import ru.diszexuf.streamlive.model.UserGetRequestDto;
+import ru.diszexuf.streamlive.model.UserRegisterRequestDto;
 import ru.diszexuf.streamlive.user.UserRepository;
 import ru.diszexuf.streamlive.user.User;
 import ru.diszexuf.streamlive.user.UserMapper;
@@ -18,7 +20,7 @@ public class RegisterUserUseCase {
   private final UserRepository userRepository;
   private final UserMapper userMapper;
 
-  public UserGetRequest execute(UserRegisterRequest dto) {
+  public UserGetRequestDto execute(UserRegisterRequestDto dto) {
     User user = User.builder()
             .username(dto.getUsername())
             .email(dto.getEmail())

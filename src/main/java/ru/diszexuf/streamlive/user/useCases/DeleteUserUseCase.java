@@ -17,8 +17,8 @@ import java.util.UUID;
 public class DeleteUserUseCase {
   private final UserRepository userRepository;
 
-  public void execute(String userId) {
-    User user = userRepository.findById(UUID.fromString(userId))
+  public void execute(UUID userId) {
+    User user = userRepository.findById(userId)
             .orElseThrow(() -> new NoSuchElementException("No such user with id: " + userId));
     userRepository.delete(user);
   }
