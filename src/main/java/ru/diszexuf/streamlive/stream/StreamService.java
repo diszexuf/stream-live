@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 import ru.diszexuf.streamlive.stream.dto.StreamDto;
 import ru.diszexuf.streamlive.user.User;
 import ru.diszexuf.streamlive.user.UserRepository;
-import ru.diszexuf.streamlive.user.dto.UserGetRequest;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -139,12 +138,12 @@ public class StreamService {
     public StreamDto convertToDto(Stream stream) {
         return new StreamDto(
                 stream.getId(),
-                new UserGetRequest(),
+                stream.getUser().getId(),
                 stream.getTitle(),
                 stream.getDescription(),
                 stream.getThumbnailUrl(),
                 stream.getStreamKey(),
-                stream.getTags(),
+                stream.getTags().stream().toList(),
                 stream.getIsLive(),
                 stream.getViewersCount(),
                 stream.getStartedAt(),

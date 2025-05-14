@@ -9,7 +9,6 @@ import ru.diszexuf.streamlive.user.User;
 import java.util.List;
 import java.util.UUID;
 
-@Repository
 public interface StreamRepository extends JpaRepository<Stream, UUID> {
   List<Stream> findByUser(User user);
 

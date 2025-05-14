@@ -8,8 +8,6 @@ import ru.diszexuf.streamlive.model.UserUpdateRequestDto;
 import ru.diszexuf.streamlive.user.UserRepository;
 import ru.diszexuf.streamlive.user.User;
 import ru.diszexuf.streamlive.user.UserMapper;
-import ru.diszexuf.streamlive.user.dto.UserGetRequest;
-import ru.diszexuf.streamlive.user.dto.UserUpdateRequest;
 
 import java.util.NoSuchElementException;
 import java.util.UUID;

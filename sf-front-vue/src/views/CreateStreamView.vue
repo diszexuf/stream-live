@@ -3,6 +3,8 @@ import {ref, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
 import axios from 'axios'
 import {useUserStore} from '@/stores/user'
+import UserService from "@/services/UserService.js";
+import {UsersApi} from "@/api/index.js";
 
 export default {
   name: 'CreateStreamView',
@@ -14,7 +16,7 @@ export default {
     const isLoading = ref(false)
     const tags = ref([])
     const apiUrl = 'http://localhost:8080/api'
-
+    const userService = UsersApi;
     const startStream = async () => {
       if (!streamTitle.value || !selectedCategoryId.value) {
         alert('Пожалуйста, заполните все обязательные поля')

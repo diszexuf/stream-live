@@ -8,7 +8,6 @@ import ru.diszexuf.streamlive.model.UserGetRequestDto;
 import ru.diszexuf.streamlive.user.User;
 import ru.diszexuf.streamlive.user.UserRepository;
 import ru.diszexuf.streamlive.user.UserMapper;
-import ru.diszexuf.streamlive.user.dto.UserGetRequest;
 
 import java.util.List;
 

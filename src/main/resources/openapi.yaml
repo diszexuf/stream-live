@@ -13,18 +13,18 @@ servers:
   - url: /api
     description: Local dev platform
 paths:
-#  /streams:
-#    get:
-#      tags: [streams]
-#      summary: List of all streams
-#      operationId: getAllStreams
-#      responses:
-#        200:
-#          description: 'success'
-#          content:
-#            application/json:
-#              schema:
-#                $ref: '#/components/schemas/GetStreamRequest'
+  /streams:
+    get:
+      tags: [streams]
+      summary: List of all streams
+      operationId: getAllStreams
+      responses:
+        200:
+          description: 'success'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetStreamRequest'
 
   /users:
     get:
@@ -130,6 +130,7 @@ paths:
 
 components:
   schemas:
+# USERS
     UserAuthRequest:
       type: object
       properties:
@@ -170,6 +171,7 @@ components:
           type: string
         bio:
           type: string
+# STREAMS
     CreateStreamRequests:
       type: object
       properties:
