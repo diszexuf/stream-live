@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 @CrossOrigin
 public class UserController implements UsersApi {
@@ -27,7 +27,6 @@ public class UserController implements UsersApi {
   private final UpdateUserUseCase updateUserUseCase;
   private final DeleteUserUseCase deleteUserUseCase;
   private final UpdateUserStreamKeyUseCase updateUserStreamKeyUseCase;
-  private final LoginUserUseCase loginUserUseCase;
 
   @Override
   public ResponseEntity<Void> deleteUser(UUID userId) {
@@ -48,11 +47,6 @@ public class UserController implements UsersApi {
   @Override
   public ResponseEntity<UserGetRequestDto> getUserById(UUID userId) {
     return ResponseEntity.ok(getUserByIdUseCase.execute(userId));
-  }
-
-  @Override
-  public ResponseEntity<UserGetRequestDto> loginUser(UserAuthRequestDto userAuthRequestDto) {
-    return ResponseEntity.ok(loginUserUseCase.execute(userAuthRequestDto));
   }
 
   @Override

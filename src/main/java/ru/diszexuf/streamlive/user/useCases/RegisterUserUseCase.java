@@ -20,12 +20,13 @@ public class RegisterUserUseCase {
 
   public UserGetRequestDto execute(UserRegisterRequestDto dto) {
     User user = User.builder()
-            .username(dto.getUsername())
-            .email(dto.getEmail())
-            .password(dto.getPassword())
-            .followerCount(0)
-            .streamKey(UUID.randomUUID())
-            .build();
+        .username(dto.getUsername())
+        .email(dto.getEmail())
+        .password(dto.getPassword())
+        .followerCount(0)
+        .streamKey(UUID.randomUUID())
+        .enabled(true)
+        .build();
     return userMapper.mapToDto(userRepository.save(user));
   }
 }

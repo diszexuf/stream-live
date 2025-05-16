@@ -3,42 +3,239 @@ info:
   title: API for Streaming Service
   version: 1.0.0
   description: |
-    API for managing users and their streaming activities
+    API for managing users and their streaming activities with JWT authentication
 tags:
+  - name: auth
+    description: Authentication operations
   - name: users
-    description: operations on users
+    description: Operations on users
   - name: streams
-    description: operations on streams
+    description: Operations on streams
 servers:
-  - url: /api
+  - url: http://localhost:8080/api
     description: Local dev platform
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login
+
+  schemas:
+    # Auth
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT token for authentication
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    UserAuthRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: "john_doe"
+        password:
+          type: string
+          format: password
+          example: "securePassword123"
+
+    # Users
+    UserRegisterRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 20
+          example: "john_doe"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: "securePassword123"
+        avatarUrl:
+          type: string
+          nullable: true
+          example: "https://example.com/avatar.jpg"
+        bio:
+          type: string
+          nullable: true
+          maxLength: 500
+          example: "Streamer and gamer"
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        username:
+          type: string
+          example: "john_doe"
+        email:
+          type: string
+          example: "john@example.com"
+        avatarUrl:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        followerCount:
+          type: integer
+          minimum: 0
+          example: 42
+        streamKey:
+          type: string
+          format: uuid
+          description: Only visible for own profile or admins
+          example: "550e8400-e29b-41d4-a716-446655440001"
+
+    UserUpdateRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+          maxLength: 500
+
+    # Streams
+    StreamRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          maxLength: 100
+          example: "My Awesome Stream"
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: "Playing some cool games today!"
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 20
+          example: ["gaming", "esports"]
+
+    StreamResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440002"
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        thumbnailUrl:
+          type: string
+          nullable: true
+        streamKey:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          items:
+            type: string
+        isLive:
+          type: boolean
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        viewerCount:
+          type: integer
+          minimum: 0
+
+  parameters:
+    UserUsername:
+      name: userUsername
+      in: path
+      required: true
+      schema:
+        type: string
+        example: "john_doe"
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440000"
+    StreamId:
+      name: streamId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440002"
+
 paths:
-  /streams:
-    get:
-      tags: [streams]
-      summary: List of all streams
-      operationId: getAllStreams
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Authenticate user
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserAuthRequest'
       responses:
         200:
-          description: 'success'
+          description: Successfully authenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetStreamRequest'
+                $ref: '#/components/schemas/AuthResponse'
+        401:
+          description: Invalid credentials
+        404:
+          description: User not found
 
   /users:
-    get:
-      tags: [users]
-      operationId: getALlUsers
-      responses:
-        200:
-          description: 'success'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ArrayUserGetRequest'
     post:
       tags: [users]
+      summary: Register new user
       operationId: registerUser
       requestBody:
         required: true
@@ -48,45 +245,63 @@ paths:
               $ref: '#/components/schemas/UserRegisterRequest'
       responses:
         201:
-          description: User registered
+          description: User registered successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserGetRequest'
-  /user/login:
-    post:
-      tags: [users]
-      operationId: loginUser
-      requestBody:
-        content:
-          application/schema:
-            schema:
-              $ref: '#/components/schemas/UserAuthRequest'
-      responses:
-        200:
-          description: success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserGetRequest'
-  /user/{id}:
+                $ref: '#/components/schemas/UserResponse'
+        400:
+          description: Validation error
+        409:
+          description: Username or email already exists
+
     get:
       tags: [users]
+      summary: Get all users
+      operationId: getAllUsers
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserResponse'
+        401:
+          description: Unauthorized
+
+  /users/{id}:
+    get:
+      tags: [users]
+      summary: Get user by ID
       operationId: getUserById
       parameters:
         - $ref: '#/components/parameters/UserId'
+      security:
+        - bearerAuth: []
       responses:
         200:
-          description: success
+          description: User details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserGetRequest'
+                $ref: '#/components/schemas/UserResponse'
+        401:
+          description: Unauthorized
+        404:
+          description: User not found
+
     put:
       tags: [users]
+      summary: Update user profile
       operationId: updateUser
       parameters:
         - $ref: '#/components/parameters/UserId'
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -95,142 +310,78 @@ paths:
               $ref: '#/components/schemas/UserUpdateRequest'
       responses:
         200:
-          description: profile updated
+          description: Profile updated successfully
+        400:
+          description: Validation error
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden (not your profile)
+        404:
+          description: User not found
+
     delete:
       tags: [users]
+      summary: Delete user
       operationId: deleteUser
       parameters:
         - $ref: '#/components/parameters/UserId'
+      security:
+        - bearerAuth: []
       responses:
         204:
-          description: deleted
+          description: User deleted successfully
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        404:
+          description: User not found
+
   /users/{id}/streamkey:
     put:
       tags: [users]
+      summary: Regenerate stream key
       operationId: updateStreamKey
       parameters:
         - $ref: '#/components/parameters/UserId'
+      security:
+        - bearerAuth: []
       responses:
         200:
-          description: stream key updated
-  /users/{userUsername}:
-    get:
-      tags: [users]
-      operationId: getUserByUsername
-      parameters:
-        - $ref: '#/components/parameters/UserUsername'
-      responses:
-        200:
-          description: success
+          description: Stream key updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserGetRequest'
+                type: object
+                properties:
+                  newStreamKey:
+                    type: string
+                    format: uuid
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        404:
+          description: User not found
 
-
-components:
-  schemas:
-# USERS
-    UserAuthRequest:
-      type: object
-      properties:
-        username:
-          type: string
-        password:
-          type: string
-    UserRegisterRequest:
-      type: object
-      properties:
-        username:
-          type: string
-        email:
-          type: string
-        password:
-          type: string
-    ArrayUserGetRequest:
-      type: array
-      items:
-        $ref: '#/components/schemas/UserGetRequest'
-    UserGetRequest:
-      type: object
-      properties:
-        id:
-          type: string
-        username:
-          type: string
-        email:
-          type: string
-        bio:
-          type: string
-        streamKey:
-          type: string
-    UserUpdateRequest:
-      type: object
-      properties:
-        username:
-          type: string
-        bio:
-          type: string
-# STREAMS
-    CreateStreamRequests:
-      type: object
-      properties:
-        title:
-          type: string
-        description:
-          type: string
-        tags:
-          type: array
-          items:
-            type: string
-    GetStreamArrayRequest:
-      type: array
-      items:
-        $ref: '#/components/schemas/GetStreamRequest'
-    GetStreamRequest:
-      type: object
-      properties:
-        id:
-          type: string
-        userId:
-          type: string
-        title:
-          type: string
-        description:
-          type: string
-        thumbnailUrl:
-          type: string
-        streamKey:
-          type: string
-        tags:
-          type: array
-          items:
-            type: string
-        isLive:
-          type: boolean
-        startedAt:
-          type: string
-        endedAt:
-          type: string
-      required: [id, userId, title, streamKey, isLive, startedAt]
-  parameters:
-    UserUsername:
-      name: userUsername
-      in: path
-      required: true
-      schema:
-        type: string
-    UserId:
-      name: userId
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    StreamId:
-      name: streamId
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
+  /users/{userUsername}:
+    get:
+      tags: [users]
+      summary: Get user by username
+      operationId: getUserByUsername
+      parameters:
+        - $ref: '#/components/parameters/UserUsername'
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        401:
+          description: Unauthorized
+        404:
+          description: User not found

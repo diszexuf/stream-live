@@ -1,3 +1,40 @@
+<script setup>
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
+import AuthCard from '@/components/auth/AuthCard.vue'
+
+const router = useRouter()
+const userStore = useUserStore()
+const username = ref('')
+const password = ref('')
+const errorMessage = ref('')
+const isLoading = ref(false)
+
+const login = async () => {
+  if (!username.value || !password.value) {
+    errorMessage.value = 'Пожалуйста, заполните все поля'
+    return
+  }
+
+  isLoading.value = true
+  try {
+    const success = await userStore.login(username.value, password.value)
+
+    if (success) {
+      router.push('/')
+    } else {
+      errorMessage.value = 'Неверное имя пользователя или пароль'
+    }
+  } catch (error) {
+    console.error('Ошибка при авторизации:', error)
+    errorMessage.value = 'Произошла ошибка при авторизации, попробуйте еще раз'
+  } finally {
+    isLoading.value = false
+  }
+}
+</script>
+
 <template>
   <auth-card title="Авторизация">
     <v-form @submit.prevent="login">
@@ -56,40 +93,3 @@
     </v-form>
   </auth-card>
 </template>
-
-<script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
-import AuthCard from '@/components/auth/AuthCard.vue'
-
-const router = useRouter()
-const userStore = useUserStore()
-const username = ref('')
-const password = ref('')
-const errorMessage = ref('')
-const isLoading = ref(false)
-
-const login = async () => {
-  if (!username.value || !password.value) {
-    errorMessage.value = 'Пожалуйста, заполните все поля'
-    return
-  }
-  
-  isLoading.value = true
-  try {
-    const success = await userStore.login(username.value, password.value)
-    
-    if (success) {
-      router.push('/')
-    } else {
-      errorMessage.value = 'Неверное имя пользователя или пароль'
-    }
-  } catch (error) {
-    console.error('Ошибка при авторизации:', error)
-    errorMessage.value = 'Произошла ошибка при авторизации, попробуйте еще раз'
-  } finally {
-    isLoading.value = false
-  }
-}
-</script> 

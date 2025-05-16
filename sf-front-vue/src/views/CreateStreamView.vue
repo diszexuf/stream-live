@@ -1,81 +1,63 @@
-<script>
+<script setup>
 import {ref, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
 import axios from 'axios'
 import {useUserStore} from '@/stores/user'
-import UserService from "@/services/UserService.js";
-import {UsersApi} from "@/api/index.js";
 
-export default {
-  name: 'CreateStreamView',
-  setup() {
-    const router = useRouter()
-    const userStore = useUserStore()
-    const streamTitle = ref('')
-    const streamDescription = ref('')
-    const isLoading = ref(false)
-    const tags = ref([])
-    const apiUrl = 'http://localhost:8080/api'
-    const userService = UsersApi;
-    const startStream = async () => {
-      if (!streamTitle.value || !selectedCategoryId.value) {
-        alert('Пожалуйста, заполните все обязательные поля')
-        return
-      }
+const router = useRouter()
+const userStore = useUserStore()
+const streamTitle = ref('')
+const streamDescription = ref('')
+const isLoading = ref(false)
+const tags = ref([])
+const apiUrl = 'http://localhost:8080/api'
+const startStream = async () => {
+  if (!streamTitle.value || !selectedCategoryId.value) {
+    alert('Пожалуйста, заполните все обязательные поля')
+    return
+  }
 
-      isLoading.value = true
-      try {
-        if (!userStore.user?.id) {
-          await userStore.fetchUser()
-          if (!userStore.user?.id) {
-            throw new Error('Пользователь не авторизован')
-          }
-        }
-
-        const response = await axios.post(`${apiUrl}/streams`, {
-          title: streamTitle.value,
-          description: streamDescription.value,
-          isPrivate: isPrivate.value
-        }, {
-          params: {
-            userId: userStore.user.id,
-            categoryId: selectedCategoryId.value
-          }
-        })
-
-        if (response.data && response.data.id) {
-          await axios.post(`${apiUrl}/streams/${response.data.id}/start`)
-          router.push(`/stream/${response.data.id}`)
-        } else {
-          throw new Error('Неверный ответ от сервера')
-        }
-      } catch (error) {
-        console.error('Ошибка при создании стрима:', error)
-        alert('Не удалось создать стрим. Пожалуйста, попробуйте еще раз.')
-      } finally {
-        isLoading.value = false
+  isLoading.value = true
+  try {
+    if (!userStore.user?.id) {
+      await userStore.fetchUser()
+      if (!userStore.user?.id) {
+        throw new Error('Пользователь не авторизован')
       }
     }
 
-    onMounted(async () => {
-      if (!userStore.user) {
-        await userStore.fetchUser()
+    const response = await axios.post(`${apiUrl}/streams`, {
+      title: streamTitle.value,
+      description: streamDescription.value,
+      isPrivate: isPrivate.value
+    }, {
+      params: {
+        userId: userStore.user.id,
+        categoryId: selectedCategoryId.value
       }
-      await fetchCategories()
     })
 
-    return {
-      streamTitle,
-      selectedCategoryId,
-      streamDescription,
-      isPrivate,
-      isLoading,
-      categories,
-      startStream,
-      userStore
+    if (response.data && response.data.id) {
+      await axios.post(`${apiUrl}/streams/${response.data.id}/start`)
+      router.push(`/stream/${response.data.id}`)
+    } else {
+      throw new Error('Неверный ответ от сервера')
     }
+  } catch (error) {
+    console.error('Ошибка при создании стрима:', error)
+    alert('Не удалось создать стрим. Пожалуйста, попробуйте еще раз.')
+  } finally {
+    isLoading.value = false
   }
 }
+
+onMounted(async () => {
+  if (!userStore.user) {
+    await userStore.fetchUser()
+  }
+  await fetchCategories()
+})
+
 </script>
 
 <template>

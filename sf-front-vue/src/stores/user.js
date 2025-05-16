@@ -47,11 +47,17 @@ export const useUserStore = defineStore('user', () => {
     isAuthenticated.value = false
   }
 
+  const setUser = (newUser) => {
+    user.value = newUser
+    isAuthenticated.value = !!newUser
+  }
+
   return {
     user,
     isAuthenticated,
     fetchUser,
     login,
-    logout
+    logout,
+    setUser
   }
 }) 

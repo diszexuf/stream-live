@@ -1,3 +1,59 @@
+<script setup>
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
+import AuthCard from '@/components/auth/AuthCard.vue'
+import UserRegisterRequest from '@/api/src/model/UserRegisterRequest.js'
+import ApiClient from "@/api/src/ApiClient.js";
+import {UsersApi} from "@/api/src/index.js";
+
+const apiClient = ApiClient.instance
+const userApi = new UsersApi(apiClient)
+const router = useRouter()
+const userStore = useUserStore()
+const username = ref('')
+const email = ref('')
+const password = ref('')
+const confirmPassword = ref('')
+const errorMessage = ref('')
+const isLoading = ref(false)
+
+const register = async () => {
+  if (!username.value || !email.value || !password.value || !confirmPassword.value) {
+    errorMessage.value = 'Пожалуйста, заполните все поля'
+    return
+  }
+
+  if (password.value !== confirmPassword.value) {
+    errorMessage.value = 'Пароли не совпадают'
+    return
+  }
+
+  isLoading.value = true
+
+  try {
+    const request = new UserRegisterRequest()
+    request.username = username.value
+    request.email = email.value
+    request.password = password.value
+    console.log(request);
+    const user = await userApi.registerUser(request)
+
+    if (user) {
+      await userStore.setUser(user)
+      router.push('/profile')
+    } else {
+      errorMessage.value = 'Ошибка при регистрации'
+    }
+  } catch (error) {
+    console.error('Ошибка при регистрации:', error)
+    errorMessage.value = 'Произошла ошибка при регистрации, попробуйте еще раз'
+  } finally {
+    isLoading.value = false
+  }
+}
+</script>
+
 <template>
   <auth-card title="Регистрация">
     <v-form @submit.prevent="register">
@@ -78,53 +134,3 @@
     </v-form>
   </auth-card>
 </template>
-
-<script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
-import { createUser } from '@/services/UserService'
-import AuthCard from '@/components/auth/AuthCard.vue'
-
-const router = useRouter()
-const userStore = useUserStore()
-const username = ref('')
-const email = ref('')
-const password = ref('')
-const confirmPassword = ref('')
-const errorMessage = ref('')
-const isLoading = ref(false)
-
-const register = async () => {
-  if (!username.value || !email.value || !password.value || !confirmPassword.value) {
-    errorMessage.value = 'Пожалуйста, заполните все поля'
-    return
-  }
-  
-  if (password.value !== confirmPassword.value) {
-    errorMessage.value = 'Пароли не совпадают'
-    return
-  }
-  
-  isLoading.value = true
-  try {
-    const user = await createUser({
-      username: username.value,
-      email: email.value,
-      password: password.value
-    })
-    
-    if (user) {
-      await userStore.setUser(user)
-      router.push('/profile')
-    } else {
-      errorMessage.value = 'Ошибка при регистрации'
-    }
-  } catch (error) {
-    console.error('Ошибка при регистрации:', error)
-    errorMessage.value = 'Произошла ошибка при регистрации, попробуйте еще раз'
-  } finally {
-    isLoading.value = false
-  }
-}
-</script> 
