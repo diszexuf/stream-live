@@ -23,8 +23,8 @@ public class UpdateUserUseCase {
   public void execute(UUID id, UserUpdateRequestDto dto) {
     User user = userRepository.findById(id)
             .orElseThrow(() -> new NoSuchElementException("No such user with id: " + id));
-    user.setUsername(dto.getUsername());
-    user.setBio(dto.getBio());
+//    user.setUsername(dto.setAvatarUrl(););
+//    user.setBio(dto.getBio());
     userRepository.save(user);
   }
 }

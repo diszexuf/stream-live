@@ -85,49 +85,6 @@ export default {
       }
     }
 
-    // Обновить используемый ключ стрима
-    const updateStreamKey = () => {
-      if (!manualStreamKey.value) return;
-
-      console.log(`Установлен ручной ключ стрима: ${manualStreamKey.value}`);
-
-      // Если плеер уже инициализирован, обновим источник
-      if (player.value) {
-        const hlsUrl = `http://localhost:8088/hls/${manualStreamKey.value}/index.m3u8`;
-        player.value.src({ src: hlsUrl, type: 'application/x-mpegURL' });
-        player.value.play().catch(error => {
-          console.error('Ошибка автовоспроизведения:', error);
-        });
-      } else {
-        // Иначе инициализируем заново
-        initVideoPlayer();
-      }
-    };
-
-    // Попробовать использовать тестовый ключ стрима
-    const tryTestStream = async () => {
-      manualStreamKey.value = 'live_12345678_AbCdEfGhIjKlMnOpQrStUvWxYz';
-      updateStreamKey();
-
-      // Получить список доступных потоков (для отладки)
-      try {
-        const response = await fetch('http://localhost:8088/stat');
-        const text = await response.text();
-        if (text) {
-          const regex = /hls\/([^"]+)/g;
-          const matches = [...text.matchAll(regex)];
-          if (matches.length) {
-            availableStreamKeys.value = matches.map(m => m[1]).join('\n');
-          } else {
-            availableStreamKeys.value = 'Активные потоки не найдены';
-          }
-        }
-      } catch (error) {
-        console.error('Ошибка при получении статистики:', error);
-        availableStreamKeys.value = 'Ошибка при получении статистики';
-      }
-    };
-
     // Модифицированная инициализация видеоплеера
     const initVideoPlayer = () => {
       // Убеждаемся, что player еще не инициализирован
@@ -242,8 +199,6 @@ export default {
       endStream,
       videoPlayer,
       manualStreamKey,
-      updateStreamKey,
-      tryTestStream,
       availableStreamKeys
       // chatMessages,
       // newMessage
@@ -303,7 +258,7 @@ export default {
             </div>
             <v-img
               v-else
-              :src="stream.thumbnail"
+              :src="stream.thumbnailUrl"
               aspect-ratio="16/9"
               cover
             >
@@ -355,49 +310,6 @@ export default {
               <p><strong>Ключ стрима:</strong> {{ stream.streamKey }}</p>
               <p class="mt-2">Настройте OBS Studio или другую программу для стриминга с этими параметрами.</p>
             </v-alert>
-          </v-card-text>
-          
-          <v-card-text v-if="stream.live">
-            <v-expansion-panels>
-              <v-expansion-panel>
-                <v-expansion-panel-title>
-                  Ручная настройка стрима
-                </v-expansion-panel-title>
-                <v-expansion-panel-text>
-                  <v-form @submit.prevent="updateStreamKey">
-                    <v-text-field
-                      v-model="manualStreamKey"
-                      label="Введите ключ стрима вручную"
-                      hint="Используйте, если автоматическое определение не работает"
-                      persistent-hint
-                    ></v-text-field>
-                    
-                    <div class="d-flex align-center mt-3">
-                      <v-btn 
-                        color="primary" 
-                        @click="updateStreamKey"
-                        :disabled="!manualStreamKey"
-                        class="mr-2"
-                      >
-                        Применить ключ
-                      </v-btn>
-                      <v-btn 
-                        color="success" 
-                        @click="tryTestStream"
-                        class="ml-2"
-                      >
-                        Попробовать тестовый стрим
-                      </v-btn>
-                    </div>
-                    
-                    <div class="mt-4">
-                      <p class="text-body-2">Видимые директории на RTMP сервере:</p>
-                      <pre class="bg-grey-lighten-4 pa-2">{{ availableStreamKeys }}</pre>
-                    </div>
-                  </v-form>
-                </v-expansion-panel-text>
-              </v-expansion-panel>
-            </v-expansion-panels>
           </v-card-text>
         </v-card>
       </v-col>

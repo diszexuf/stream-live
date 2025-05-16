@@ -29,17 +29,15 @@ const startStream = async () => {
     const response = await axios.post(`${apiUrl}/streams`, {
       title: streamTitle.value,
       description: streamDescription.value,
-      isPrivate: isPrivate.value
     }, {
       params: {
         userId: userStore.user.id,
-        categoryId: selectedCategoryId.value
       }
     })
 
     if (response.data && response.data.id) {
       await axios.post(`${apiUrl}/streams/${response.data.id}/start`)
-      router.push(`/stream/${response.data.id}`)
+      await router.push(`/stream/${response.data.id}`)
     } else {
       throw new Error('Неверный ответ от сервера')
     }
@@ -55,7 +53,6 @@ onMounted(async () => {
   if (!userStore.user) {
     await userStore.fetchUser()
   }
-  await fetchCategories()
 })
 
 </script>
@@ -85,17 +82,6 @@ onMounted(async () => {
                   :rules="[v => !!v || 'Введите название стрима']"
                   class="mb-4"
               ></v-text-field>
-
-              <v-select
-                  v-model="selectedCategoryId"
-                  :items="categories"
-                  item-title="name"
-                  item-value="id"
-                  label="Категория"
-                  required
-                  :rules="[v => !!v || 'Выберите категорию']"
-                  class="mb-4"
-              ></v-select>
 
               <v-textarea
                   v-model="streamDescription"

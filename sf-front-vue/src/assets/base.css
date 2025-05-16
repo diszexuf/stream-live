@@ -23,9 +23,9 @@
 
 /* semantic color variables for this project */
 :root {
-  --color-background: #f8f9fa;
-  --color-background-soft: #e9ecef;
-  --color-background-mute: #dee2e6;
+  --color-background: #f0f0f0;
+  --color-background-soft: #e0e0e0;
+  --color-background-mute: #d0d0d0;
   --color-text: #212529;
   --color-text-soft: #6c757d;
   --color-border: #ced4da;
@@ -39,9 +39,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-background: #212529;
-    --color-background-soft: #343a40;
-    --color-background-mute: #495057;
+    --color-background: #1c1c1c;
+    --color-background-soft: #2c2c2c;
+    --color-background-mute: #3c3c3c;
     --color-text: #f8f9fa;
     --color-text-soft: #adb5bd;
     --color-border: #495057;
@@ -72,4 +72,21 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Soft shadow styles */
+:root {
+  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-medium: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+  --shadow-large: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
+}
+
+/* Example usage for elements */
+.card {
+  box-shadow: var(--shadow-soft);
+  transition: box-shadow 0.3s ease-in-out;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-medium);
 }

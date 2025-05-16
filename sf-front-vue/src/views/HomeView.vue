@@ -4,15 +4,15 @@
       <v-col cols="12">
         <v-card>
           <v-card-item>
-            <v-card-title class="text-h4">Популярные категории</v-card-title>
+            <v-card-title class="text-h4">Популярные стримы</v-card-title>
           </v-card-item>
           
           <v-card-text>
             <v-row>
-              <v-col v-for="category in categories" :key="category.id" cols="12" sm="6" md="4" lg="3">
-                <v-card @click="navigateToCategory(category.id)" hover>
+              <v-col v-for="stream in streams" :key="stream.id" cols="12" sm="6" md="4" lg="3">
+                <v-card @click="navigateToStream(stream.id)" hover>
                   <v-img
-                    :src="category.thumbnail"
+                    :src="stream.thumbnailUrl"
                     aspect-ratio="16/9"
                     cover
                   >
@@ -23,17 +23,17 @@
                     </template>
                   </v-img>
                   
-                  <v-card-title class="text-subtitle-1">{{ category.name }}</v-card-title>
+                  <v-card-title class="text-subtitle-1">{{ stream.title }}</v-card-title>
                   <v-card-subtitle>
                     <v-icon start size="small">mdi-eye</v-icon>
-                    {{ category.viewersCount }} зрителей
+                    {{ stream.viewersCount }} зрителей
                   </v-card-subtitle>
                 </v-card>
               </v-col>
               
-              <v-col v-if="categories.length === 0" cols="12">
+              <v-col v-if="streams.length === 0" cols="12">
                 <v-alert type="info">
-                  Категории не найдены. Пожалуйста, обновите страницу.
+                  Стримы не найдены. Пожалуйста, обновите страницу.
                 </v-alert>
               </v-col>
             </v-row>
@@ -53,22 +53,18 @@ export default {
   name: 'HomeView',
   setup() {
     const router = useRouter()
-    const categories = ref([])
+    const streams = ref([])
     const apiUrl = 'http://localhost:8080/api'
     
-    const fetchCategories = async () => {
+    const fetchStreams = async () => {
       try {
-        const response = await axios.get(`${apiUrl}/categories`)
-        categories.value = response.data
+        const response = await axios.get(`${apiUrl}/streams`)
+        streams.value = response.data
       } catch (error) {
-        console.error('Ошибка при получении категорий:', error)
-        categories.value = []
-        alert('Не удалось загрузить категории. Пожалуйста, обновите страницу.')
+        console.error('Ошибка при получении стримов:', error)
+        streams.value = []
+        alert('Не удалось загрузить стримы. Пожалуйста, обновите страницу.')
       }
-    }
-    
-    const navigateToCategory = (categoryId) => {
-      router.push(`/category/${categoryId}`)
     }
     
     const navigateToStream = (streamId) => {
@@ -76,12 +72,11 @@ export default {
     }
     
     onMounted(async () => {
-      await fetchCategories()
+      await fetchStreams()
     })
     
     return {
-      categories,
-      navigateToCategory,
+      streams,
       navigateToStream
     }
   }

@@ -25,6 +25,12 @@ public class SecurityConfig {
         .csrf(AbstractHttpConfigurer::disable)
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/api/auth/**").permitAll()
+            .requestMatchers("/api/users").permitAll() // POST для регистрации разрешен всем
+            .requestMatchers("/api/streams").permitAll() // GET для получения всех потоков разрешен всем
+            .requestMatchers("/api/streams/live").permitAll() // GET для получения активных потоков разрешен всем
+            .requestMatchers("/api/streams/*/search").permitAll() // GET для поиска потоков разрешен всем
+            .requestMatchers("/api/streams/user/*").permitAll() // GET для получения потоков пользователя разрешен всем
+            .requestMatchers(req -> req.getMethod().equals("GET") && req.getRequestURI().matches("/api/streams/[^/]+")).permitAll() // GET для получения потока по ID разрешен всем
             .anyRequest().authenticated()
         )
         .sessionManagement(session -> session

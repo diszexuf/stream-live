@@ -1,14 +1,15 @@
 package ru.diszexuf.streamlive.user;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import ru.diszexuf.streamlive.api.UsersApi;
-import ru.diszexuf.streamlive.model.UserAuthRequestDto;
-import ru.diszexuf.streamlive.model.UserGetRequestDto;
-import ru.diszexuf.streamlive.model.UserRegisterRequestDto;
+import ru.diszexuf.streamlive.model.RegenerateCurrentUserStreamKey200ResponseDto;
+import ru.diszexuf.streamlive.model.UserResponseDto;
 import ru.diszexuf.streamlive.model.UserUpdateRequestDto;
+import ru.diszexuf.streamlive.user.useCases.ResetStreamKeyUseCase;
 import ru.diszexuf.streamlive.user.useCases.*;
 
 import java.util.List;
@@ -23,46 +24,45 @@ public class UserController implements UsersApi {
   private final GetAllUsersUseCase getAllUsersUseCase;
   private final GetUserByIdUseCase getUserByIdUseCase;
   private final GetUserByUsernameUseCase getUserByUsernameUseCase;
-  private final RegisterUserUseCase registerUserUseCase;
   private final UpdateUserUseCase updateUserUseCase;
   private final DeleteUserUseCase deleteUserUseCase;
-  private final UpdateUserStreamKeyUseCase updateUserStreamKeyUseCase;
+  private final GetCurrentUserUseCase getCurrentUserUseCase;
+  private final ResetStreamKeyUseCase resetStreamKeyUseCase;
 
   @Override
-  public ResponseEntity<Void> deleteUser(UUID userId) {
-    deleteUserUseCase.execute(userId);
-    return ResponseEntity.ok().build();
+  public ResponseEntity<RegenerateCurrentUserStreamKey200ResponseDto> regenerateCurrentUserStreamKey() {
+    return ResponseEntity.ok(resetStreamKeyUseCase.execute());
   }
 
   @Override
-  public ResponseEntity<UserGetRequestDto> getUserByUsername(String userUsername) {
-    return ResponseEntity.ok(getUserByUsernameUseCase.execute(userUsername));
+  public ResponseEntity<Void> deleteUser(UUID id) {
+    deleteUserUseCase.execute(id);
+    return ResponseEntity.noContent().build();
   }
 
   @Override
-  public ResponseEntity<List<UserGetRequestDto>> getALlUsers() {
+  public ResponseEntity<List<UserResponseDto>> getAllUsers() {
     return ResponseEntity.ok(getAllUsersUseCase.execute());
   }
 
   @Override
-  public ResponseEntity<UserGetRequestDto> getUserById(UUID userId) {
-    return ResponseEntity.ok(getUserByIdUseCase.execute(userId));
+  public ResponseEntity<UserResponseDto> getCurrentUserProfile() {
+    return ResponseEntity.ok(getCurrentUserUseCase.execute());
   }
 
   @Override
-  public ResponseEntity<UserGetRequestDto> registerUser(UserRegisterRequestDto userRegisterRequestDto) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(registerUserUseCase.execute(userRegisterRequestDto));
+  public ResponseEntity<UserResponseDto> getUserById(UUID id) {
+    return ResponseEntity.ok(getUserByIdUseCase.execute(id));
   }
 
   @Override
-  public ResponseEntity<Void> updateStreamKey(UUID userId) {
-    updateUserStreamKeyUseCase.execute(userId);
-    return ResponseEntity.ok().build();
+  public ResponseEntity<UserResponseDto> getUserByUsername(String userUsername) {
+    return ResponseEntity.ok(getUserByUsernameUseCase.execute(userUsername));
   }
 
   @Override
-  public ResponseEntity<Void> updateUser(UUID userId, UserUpdateRequestDto userUpdateRequestDto) {
-    updateUserUseCase.execute(userId, userUpdateRequestDto);
+  public ResponseEntity<Void> updateUser(UUID id, UserUpdateRequestDto userUpdateRequestDto) {
+    updateUserUseCase.execute(id, userUpdateRequestDto);
     return ResponseEntity.ok().build();
   }
 

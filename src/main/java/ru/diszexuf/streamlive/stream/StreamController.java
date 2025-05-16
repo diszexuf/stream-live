@@ -1,94 +1,91 @@
-package ru.diszexuf.streamlive.stream;
-
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import ru.diszexuf.streamlive.stream.dto.StreamDto;
-
-import java.util.List;
-import java.util.UUID;
-
-@RestController
-@RequestMapping("/api/streams")
-@RequiredArgsConstructor
-@CrossOrigin
-public class StreamController {
-    
-    private final StreamService streamService;
-    
-    @GetMapping
-    public ResponseEntity<List<StreamDto>> getAllStreams() {
-        return ResponseEntity.ok(streamService.getAllStreams());
-    }
-    
-    @GetMapping("/live")
-    public ResponseEntity<List<StreamDto>> getLiveStreams() {
-        return ResponseEntity.ok(streamService.getLiveStreams());
-    }
-    
-    @GetMapping("/{id}")
-    public ResponseEntity<StreamDto> getStreamById(@PathVariable UUID id) {
-        return streamService.getStreamById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-    
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<StreamDto>> getStreamsByUser(@PathVariable UUID userId) {
-        List<StreamDto> streams = streamService.getStreamsByUser(userId);
-        return ResponseEntity.ok(streams);
-    }
-    
-    @GetMapping("/search")
-    public ResponseEntity<List<StreamDto>> searchStreams(@RequestParam String query) {
-        return ResponseEntity.ok(streamService.searchStreams(query));
-    }
-    
-    @PostMapping
-    public ResponseEntity<StreamDto> createStream(
-            @RequestBody Stream stream,
-            @RequestParam UUID userId) {
-        return streamService.createStream(stream, userId)
-                .map(streamDto -> ResponseEntity.status(HttpStatus.CREATED).body(streamDto))
-                .orElse(ResponseEntity.badRequest().build());
-    }
-    
-    @PutMapping("/{id}")
-    public ResponseEntity<StreamDto> updateStream(@PathVariable UUID id, @RequestBody Stream stream) {
-        return streamService.updateStream(id, stream)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-    
-    @PostMapping("/{id}/start")
-    public ResponseEntity<StreamDto> startStream(@PathVariable UUID id) {
-        return streamService.startStream(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-    
-    @PostMapping("/{id}/end")
-    public ResponseEntity<StreamDto> endStream(@PathVariable UUID id) {
-        return streamService.endStream(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-    
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteStream(@PathVariable UUID id) {
-        if (streamService.deleteStream(id)) {
-            return ResponseEntity.noContent().build();
-        }
-        return ResponseEntity.notFound().build();
-    }
-    
-    @PostMapping("/{id}/reset-key")
-    public ResponseEntity<UUID> resetStreamKey(
-            @PathVariable UUID id,
-            @RequestParam UUID userId) {
-        return streamService.resetStreamKey(id, userId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-}
+//package ru.diszexuf.streamlive.stream;
+//
+//import lombok.RequiredArgsConstructor;
+//import org.springframework.http.HttpStatus;
+//import org.springframework.http.ResponseEntity;
+//import org.springframework.web.bind.annotation.*;
+//import ru.diszexuf.streamlive.api.StreamsApi;
+//import ru.diszexuf.streamlive.model.StreamRequestDto;
+//import ru.diszexuf.streamlive.model.StreamResponseDto;
+//import ru.diszexuf.streamlive.model.UpdateStreamKey200ResponseDto;
+//import ru.diszexuf.streamlive.stream.dto.StreamDto;
+//import ru.diszexuf.streamlive.stream.useCases.*;
+//
+//import java.util.List;
+//import java.util.Map;
+//import java.util.UUID;
+//
+//@RestController
+//@RequestMapping("/api/streams")
+//@RequiredArgsConstructor
+//@CrossOrigin
+//public class StreamController implements StreamsApi {
+//
+//    private final GetAllStreamsUseCase getAllStreamsUseCase;
+//    private final GetLiveStreamsUseCase getLiveStreamsUseCase;
+//    private final GetStreamByIdUseCase getStreamByIdUseCase;
+//    private final GetStreamsByUserUseCase getStreamsByUserUseCase;
+//    private final SearchStreamsUseCase searchStreamsUseCase;
+//    private final CreateStreamUseCase createStreamUseCase;
+//    private final UpdateStreamUseCase updateStreamUseCase;
+//    private final DeleteStreamUseCase deleteStreamUseCase;
+//    private final StartStreamUseCase startStreamUseCase;
+//    private final EndStreamUseCase endStreamUseCase;
+//    private final ResetStreamKeyUseCase resetStreamKeyUseCase;
+//
+//    @Override
+//    public ResponseEntity<StreamResponseDto> createStream(UUID userId, StreamRequestDto streamRequestDto) {
+//        return ResponseEntity.ok(createStreamUseCase.execute(userId, streamRequestDto));
+//    }
+//
+//    @Override
+//    public ResponseEntity<Void> deleteStream(UUID streamId) {
+//        deleteStreamUseCase.execute(streamId);
+//        return ResponseEntity.ok().build();
+//    }
+//
+//    @Override
+//    public ResponseEntity<StreamResponseDto> endStream(UUID streamId) {
+//        return ResponseEntity.ok(endStreamUseCase.execute(streamId));
+//    }
+//
+//    @Override
+//    public ResponseEntity<List<StreamResponseDto>> getAllStreams() {
+//        return ResponseEntity.ok(getAllStreamsUseCase.execute());
+//    }
+//
+//    @Override
+//    public ResponseEntity<List<StreamResponseDto>> getLiveStreams() {
+//        return ResponseEntity.ok(getLiveStreamsUseCase.execute());
+//    }
+//
+//    @Override
+//    public ResponseEntity<StreamResponseDto> getStreamById(UUID streamId) {
+//        return ResponseEntity.ok(getStreamByIdUseCase.execute(streamId));
+//    }
+//
+//    @Override
+//    public ResponseEntity<List<StreamResponseDto>> getStreamsByUser(UUID id) {
+//        return ResponseEntity.ok(getStreamsByUserUseCase.execute(id));
+//    }
+//
+//    @Override
+//    public ResponseEntity<UpdateStreamKey200ResponseDto> resetStreamKey(UUID streamId, UUID userId) {
+//        return ResponseEntity.ok(resetStreamKeyUseCase.execute(streamId, userId));
+//    }
+//
+//    @Override
+//    public ResponseEntity<List<StreamResponseDto>> searchStreams(String query) {
+//        return ResponseEntity.ok(searchStreamsUseCase.execute(query));
+//    }
+//
+//    @Override
+//    public ResponseEntity<StreamResponseDto> startStream(UUID streamId) {
+//        return ResponseEntity.ok(startStreamUseCase.execute(streamId));
+//    }
+//
+//    @Override
+//    public ResponseEntity<StreamResponseDto> updateStream(UUID streamId, StreamRequestDto streamRequestDto) {
+//        return ResponseEntity.ok(updateStreamUseCase.execute(streamId, streamRequestDto));
+//    }
+//}
