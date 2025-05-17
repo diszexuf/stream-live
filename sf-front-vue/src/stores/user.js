@@ -97,11 +97,11 @@ export const useUserStore = defineStore('user', () => {
 
     // Обновление профиля
     const updateCurrentUser = async (updateData) => {
-        if (!user.value || !user.value.id) throw new Error('Пользователь не загружен');
+        if (!user.value) throw new Error('Пользователь не загружен');
 
         try {
             const dto = new UserUpdateRequest(updateData);
-            const updatedUser = await userClient.updateUser(user.value.id, dto);
+            const updatedUser = await userClient.updateUser(dto);
             // Преобразуем UserResponse в обычный объект
             user.value = {
                 id: updatedUser.id,

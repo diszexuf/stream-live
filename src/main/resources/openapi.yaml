@@ -142,6 +142,8 @@ components:
             type: string
             maxLength: 20
           example: ["gaming", "esports"]
+        thumbnailUrl:
+          type: string
 
     StreamResponse:
       type: object
@@ -409,19 +411,34 @@ paths:
         401:
           description: Unauthorized
 
+  /streams/search:
+    get:
+      tags: [ streams ]
+      summary: Search streams
+      operationId: searchStreams
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StreamResponse'
+
+  /streams/me:
     post:
       tags: [ streams ]
       summary: Create new stream
       operationId: createStream
       security:
         - bearerAuth: [ ]
-      parameters:
-        - name: userId
-          in: query
-          required: true
-          schema:
-            type: string
-            format: uuid
       requestBody:
         required: true
         content:
@@ -441,6 +458,46 @@ paths:
           description: Unauthorized
         403:
           description: Forbidden (user mismatch)
+    put:
+      tags: [ streams ]
+      summary: Update stream
+      operationId: updateStream
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StreamRequest'
+      responses:
+        200:
+          description: Stream updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamResponse'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden (not stream owner)
+        404:
+          description: Stream not found
+    delete:
+      tags: [ streams ]
+      summary: End stream
+      operationId: endStream
+      security:
+        - bearerAuth: [ ]
+      responses:
+        200:
+          description: Stream ended
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        404:
+          description: Stream not found
 
   /streams/live:
     get:
@@ -474,52 +531,6 @@ paths:
         404:
           description: Stream not found
 
-    put:
-      tags: [ streams ]
-      summary: Update stream
-      operationId: updateStream
-      security:
-        - bearerAuth: [ ]
-      parameters:
-        - $ref: '#/components/parameters/StreamId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StreamRequest'
-      responses:
-        200:
-          description: Stream updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StreamResponse'
-        401:
-          description: Unauthorized
-        403:
-          description: Forbidden (not stream owner)
-        404:
-          description: Stream not found
-
-    delete:
-      tags: [ streams ]
-      summary: Delete stream
-      operationId: deleteStream
-      security:
-        - bearerAuth: [ ]
-      parameters:
-        - $ref: '#/components/parameters/StreamId'
-      responses:
-        204:
-          description: Stream deleted
-        401:
-          description: Unauthorized
-        403:
-          description: Forbidden
-        404:
-          description: Stream not found
-
   /streams/user/{userId}:
     get:
       tags: [ streams ]
@@ -536,103 +547,3 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/StreamResponse'
-
-  /streams/search:
-    get:
-      tags: [ streams ]
-      summary: Search streams
-      operationId: searchStreams
-      parameters:
-        - name: query
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        200:
-          description: Search results
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/StreamResponse'
-
-  /streams/{id}/start:
-    post:
-      tags: [ streams ]
-      summary: Start stream
-      operationId: startStream
-      security:
-        - bearerAuth: [ ]
-      parameters:
-        - $ref: '#/components/parameters/StreamId'
-      responses:
-        200:
-          description: Stream started
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StreamResponse'
-        401:
-          description: Unauthorized
-        403:
-          description: Forbidden (not stream owner)
-        404:
-          description: Stream not found
-
-  /streams/{id}/end:
-    post:
-      tags: [ streams ]
-      summary: End stream
-      operationId: endStream
-      security:
-        - bearerAuth: [ ]
-      parameters:
-        - $ref: '#/components/parameters/StreamId'
-      responses:
-        200:
-          description: Stream ended
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StreamResponse'
-        401:
-          description: Unauthorized
-        403:
-          description: Forbidden
-        404:
-          description: Stream not found
-
-  /streams/{id}/reset-key:
-    post:
-      tags: [ streams ]
-      summary: Reset stream key
-      operationId: resetStreamKey
-      security:
-        - bearerAuth: [ ]
-      parameters:
-        - $ref: '#/components/parameters/StreamId'
-        - name: userId
-          in: query
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        200:
-          description: New stream key generated
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  newStreamKey:
-                    type: string
-                    format: uuid
-        401:
-          description: Unauthorized
-        403:
-          description: Forbidden
-        404:
-          description: Stream not found

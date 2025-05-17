@@ -1,20 +1,40 @@
-//package ru.diszexuf.streamlive.stream.useCases;
-//
-//import lombok.RequiredArgsConstructor;
-//import ru.diszexuf.streamlive.common.UseCase;
-//import ru.diszexuf.streamlive.stream.StreamMapper;
-//import ru.diszexuf.streamlive.stream.StreamRepository;
-//import ru.diszexuf.streamlive.stream.dto.StreamDto;
-//
-//import java.util.List;
-//
-//@UseCase
-//@RequiredArgsConstructor
-//public class GetAllStreamsUseCase {
-//    private final StreamRepository streamRepository;
-//    private final StreamMapper streamMapper;
-//
-//    public List<StreamDto> execute() {
-//        return streamMapper.toStreamDtos(streamRepository.findAll());
-//    }
-//}
+package ru.diszexuf.streamlive.stream.useCases;
+
+import lombok.RequiredArgsConstructor;
+import ru.diszexuf.streamlive.common.UseCase;
+import ru.diszexuf.streamlive.model.StreamResponseDto;
+import ru.diszexuf.streamlive.stream.Stream;
+import ru.diszexuf.streamlive.stream.StreamMapper;
+import ru.diszexuf.streamlive.stream.StreamRepository;
+
+import java.time.ZoneOffset;
+import java.util.List;
+
+@UseCase
+@RequiredArgsConstructor
+public class GetAllStreamsUseCase {
+  private final StreamRepository streamRepository;
+  private final StreamMapper streamMapper;
+
+  public List<StreamResponseDto> execute() {
+    return streamRepository.findAll()
+        .stream()
+        .map(this::mapToDto)
+        .toList();
+  }
+
+  public StreamResponseDto mapToDto(Stream stream) {
+    return new StreamResponseDto()
+        .id(stream.getId())
+        .userId(stream.getUser().getId())
+        .title(stream.getTitle())
+        .description(stream.getDescription())
+        .thumbnailUrl(stream.getThumbnailUrl())
+        .streamKey(stream.getStreamKey())
+        .tags(stream.getTags().stream().toList())
+        .isLive(stream.getIsLive())
+        .startedAt(stream.getStartedAt().atOffset(ZoneOffset.UTC))
+        .viewerCount(stream.getViewersCount());
+  }
+
+}

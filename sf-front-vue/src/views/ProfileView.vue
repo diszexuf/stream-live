@@ -64,7 +64,12 @@ const saveProfile = async () => {
   }
 
   try {
-    await userStore.updateCurrentUser(payload)
+    const result = await userStore.updateCurrentUser(payload)
+    if (result) {
+      alert('Профиль успешно обновлен')
+    } else {
+      errorMessage.value = 'Не удалось обновить профиль'
+    }
   } catch (error) {
     console.error('Ошибка при обновлении профиля:', error)
     errorMessage.value = 'Ошибка при сохранении профиля'

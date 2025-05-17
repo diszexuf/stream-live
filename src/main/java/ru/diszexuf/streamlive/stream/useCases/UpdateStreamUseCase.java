@@ -1,43 +1,51 @@
-//package ru.diszexuf.streamlive.stream.useCases;
-//
-//import jakarta.transaction.Transactional;
-//import lombok.RequiredArgsConstructor;
-//import lombok.extern.slf4j.Slf4j;
-//import ru.diszexuf.streamlive.common.UseCase;
-//import ru.diszexuf.streamlive.stream.Stream;
-//import ru.diszexuf.streamlive.stream.StreamMapper;
-//import ru.diszexuf.streamlive.stream.StreamRepository;
-//import ru.diszexuf.streamlive.stream.dto.StreamDto;
-//
-//import java.util.HashSet;
-//import java.util.Optional;
-//import java.util.UUID;
-//
-//@UseCase
-//@RequiredArgsConstructor
-//@Slf4j
-//@Transactional
-//public class UpdateStreamUseCase {
-//    private final StreamRepository streamRepository;
-//    private final StreamMapper streamMapper;
-//
-//    public Optional<StreamDto> execute(UUID streamId, Stream updatedStream) {
-//        log.info("Updating stream: {}", streamId);
-//
-//        return streamRepository.findById(streamId)
-//                .map(stream -> {
-//                    stream.setTitle(updatedStream.getTitle());
-//                    if (updatedStream.getDescription() != null) {
-//                        stream.setDescription(updatedStream.getDescription());
-//                    }
-//                    if (updatedStream.getThumbnailUrl() != null) {
-//                        stream.setThumbnailUrl(updatedStream.getThumbnailUrl());
-//                    }
-//                    if (updatedStream.getTags() != null) {
-//                        stream.setTags(new HashSet<>(updatedStream.getTags()));
-//                    }
-//                    return streamRepository.save(stream);
-//                })
-//                .map(streamMapper::toStreamDto);
-//    }
-//}
+package ru.diszexuf.streamlive.stream.useCases;
+
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
+import ru.diszexuf.streamlive.common.UseCase;
+import ru.diszexuf.streamlive.model.StreamRequestDto;
+import ru.diszexuf.streamlive.model.StreamResponseDto;
+import ru.diszexuf.streamlive.stream.Stream;
+import ru.diszexuf.streamlive.stream.StreamRepository;
+import ru.diszexuf.streamlive.user.User;
+import ru.diszexuf.streamlive.user.UserRepository;
+
+import java.time.ZoneOffset;
+import java.util.NoSuchElementException;
+
+@UseCase
+@RequiredArgsConstructor
+@Slf4j
+@Transactional
+public class UpdateStreamUseCase {
+  private final StreamRepository streamRepository;
+  private final UserRepository userRepository;
+
+  public StreamResponseDto execute(StreamRequestDto streamRequestDto) {
+    String username = SecurityContextHolder.getContext().getAuthentication().getName();
+    User user = userRepository.findByUsername(username)
+        .orElseThrow(() -> new NoSuchElementException("User not found"));
+    Stream stream = streamRepository.findByUserAndIsLiveTrue(user);
+    stream.setTitle(streamRequestDto.getTitle());
+    stream.setDescription(stream.getDescription());
+    StreamResponseDto dto = mapToDto(streamRepository.save(stream));
+    return dto;
+  }
+
+  public StreamResponseDto mapToDto(Stream stream) {
+    return new StreamResponseDto()
+        .id(stream.getId())
+        .userId(stream.getUser().getId())
+        .title(stream.getTitle())
+        .description(stream.getDescription())
+        .thumbnailUrl(stream.getThumbnailUrl())
+        .streamKey(stream.getStreamKey())
+        .tags(stream.getTags().stream().toList())
+        .isLive(stream.getIsLive())
+        .startedAt(stream.getStartedAt().atOffset(ZoneOffset.UTC))
+        .viewerCount(stream.getViewersCount());
+  }
+
+}

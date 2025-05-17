@@ -29,7 +29,7 @@ export default {
       return userStore.user.id === stream.value.user.id
     })
 
-    /* Закомментированная логика чата
+    /* логика чата
     const chatMessages = ref([
       {
         id: 1,
@@ -304,13 +304,6 @@ export default {
             Начало: {{ new Date(stream.startedAt).toLocaleString() }}
           </v-card-text>
           
-          <v-card-text v-if="isStreamer && stream.streamKey">
-            <v-alert type="info" title="Информация для стримера">
-              <p><strong>URL RTMP:</strong> rtmp://localhost:1935/live</p>
-              <p><strong>Ключ стрима:</strong> {{ stream.streamKey }}</p>
-              <p class="mt-2">Настройте OBS Studio или другую программу для стриминга с этими параметрами.</p>
-            </v-alert>
-          </v-card-text>
         </v-card>
       </v-col>
       
@@ -320,7 +313,7 @@ export default {
         </v-alert>
       </v-col>
       
-      <!-- Закомментированная секция чата
+      <!-- секция чата
       <v-col cols="12" md="4">
         <v-card height="calc(100vh - 120px)" class="d-flex flex-column">
           <v-card-title class="d-flex align-center">

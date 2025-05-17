@@ -29,7 +29,7 @@ export default class UserClient {
    * @returns {Promise<UserResponse>} - Обновленные данные пользователя
    */
   async updateUser(userUpdateRequest) {
-    const data = await this.httpClient.put('/users/me', userUpdateRequest.toJson());
+    const data = await this.httpClient.put(userUpdateRequest.toJson());
     return UserResponse.fromJson(data);
   }
 
