@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import ru.diszexuf.streamlive.common.UseCase;
 import ru.diszexuf.streamlive.model.StreamResponseDto;
 import ru.diszexuf.streamlive.stream.Stream;
-import ru.diszexuf.streamlive.stream.StreamMapper;
 import ru.diszexuf.streamlive.stream.StreamRepository;
 
 import java.time.ZoneOffset;

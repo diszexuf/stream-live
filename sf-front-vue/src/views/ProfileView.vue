@@ -52,10 +52,8 @@ const handleFileUpload = (event) => {
   reader.readAsDataURL(file)
 }
 
-// Сохранение данных профиля
+// Сохранение профиля
 const saveProfile = async () => {
-  if (!userStore.user) return
-
   isLoading.value = true
   errorMessage.value = ''
 
@@ -68,25 +66,39 @@ const saveProfile = async () => {
     avatarUrl: userStore.user.avatarUrl || 'https://picsum.photos/200/300',
   }
 
-  console.log('Отправка данных профиля:', payload)
+  console.log('ProfileView: Отправка данных профиля:', payload)
 
   try {
+    console.log('ProfileView: Вызов userStore.updateCurrentUser')
     const result = await userStore.updateCurrentUser(payload)
+    console.log('ProfileView: Результат обновления профиля:', result)
+    
     if (result) {
+      console.log('ProfileView: Профиль успешно обновлен')
       alert('Профиль успешно обновлен')
       
       // Обновляем локальное значение bio после успешного сохранения
       if (userStore.user) {
         userStore.user.bio = bioValue
+        console.log('ProfileView: Локальное значение bio обновлено:', bioValue)
       }
     } else {
+      console.error('ProfileView: Не удалось обновить профиль, userStore.updateCurrentUser вернул false')
       errorMessage.value = 'Не удалось обновить профиль'
     }
   } catch (error) {
-    console.error('Ошибка при обновлении профиля:', error)
-    errorMessage.value = 'Ошибка при сохранении профиля'
+    console.error('ProfileView: Ошибка при обновлении профиля:', error)
+    
+    // Дополнительная информация об ошибке
+    if (error.status) {
+      console.error(`ProfileView: Код ошибки: ${error.status}, Сообщение: ${error.statusText || error.message}`)
+      errorMessage.value = `Ошибка ${error.status}: ${error.statusText || error.message}`
+    } else {
+      errorMessage.value = 'Ошибка при сохранении профиля'
+    }
   } finally {
     isLoading.value = false
+    console.log('ProfileView: Завершение обработки сохранения профиля')
   }
 }
 

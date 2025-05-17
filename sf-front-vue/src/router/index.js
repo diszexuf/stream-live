@@ -56,11 +56,6 @@ const router = createRouter({
       path: '/privacy-policy',
       name: 'privacy-policy',
       component: () => import('../views/PrivacyPolicyView.vue')
-    },
-    {
-      path: '/test-stream-card',
-      name: 'test-stream-card',
-      component: () => import('../components/stream/TestStreamCard.vue')
     }
   ]
 })

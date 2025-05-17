@@ -1,8 +1,10 @@
 package ru.diszexuf.streamlive.stream;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import ru.diszexuf.streamlive.api.StreamsApi;
@@ -17,6 +19,7 @@ import java.util.UUID;
 @RequestMapping("/api")
 @RequiredArgsConstructor
 @CrossOrigin
+@Slf4j
 public class StreamController implements StreamsApi {
 
 
@@ -51,12 +54,12 @@ public class StreamController implements StreamsApi {
   }
 
   @Override
-  public ResponseEntity<StreamResponseDto> getStreamById(UUID streamId) {
+  public ResponseEntity<StreamResponseDto> getStreamById(@PathVariable("id") UUID streamId) {
     return ResponseEntity.ok(getStreamByIdUseCase.execute(streamId));
   }
 
   @Override
-  public ResponseEntity<List<StreamResponseDto>> getStreamsByUser(UUID id) {
+  public ResponseEntity<List<StreamResponseDto>> getStreamsByUser(@PathVariable("userId") UUID id) {
     return ResponseEntity.ok(getStreamsByUserUseCase.execute(id));
   }
 

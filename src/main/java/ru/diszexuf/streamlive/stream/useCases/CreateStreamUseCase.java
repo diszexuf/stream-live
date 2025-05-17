@@ -8,12 +8,11 @@ import ru.diszexuf.streamlive.common.UseCase;
 import ru.diszexuf.streamlive.model.StreamRequestDto;
 import ru.diszexuf.streamlive.model.StreamResponseDto;
 import ru.diszexuf.streamlive.stream.Stream;
-import ru.diszexuf.streamlive.stream.StreamMapper;
 import ru.diszexuf.streamlive.stream.StreamRepository;
 import ru.diszexuf.streamlive.user.User;
 import ru.diszexuf.streamlive.user.UserRepository;
 
-import java.time.ZoneOffset;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.NoSuchElementException;
 
@@ -24,7 +23,6 @@ import java.util.NoSuchElementException;
 public class CreateStreamUseCase {
   private final StreamRepository streamRepository;
   private final UserRepository userRepository;
-  private final StreamMapper streamMapper;
 
   public StreamResponseDto execute(StreamRequestDto streamRequestDto) {
     String username = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -38,6 +36,7 @@ public class CreateStreamUseCase {
         .thumbnailUrl(streamRequestDto.getThumbnailUrl() != null ?
             streamRequestDto.getThumbnailUrl() : "https://picsum.photos/200/300")
         .streamKey(user.getStreamKey())
+        .startedAt(LocalDateTime.now())
         .tags(streamRequestDto.getTags() != null ?
             new HashSet<>(streamRequestDto.getTags()) : new HashSet<>())
         .isLive(true)
@@ -58,7 +57,6 @@ public class CreateStreamUseCase {
         .streamKey(stream.getStreamKey())
         .tags(stream.getTags().stream().toList())
         .isLive(stream.getIsLive())
-        .startedAt(stream.getStartedAt().atOffset(ZoneOffset.UTC))
         .viewerCount(stream.getViewersCount());
   }
 }

@@ -19,25 +19,56 @@ const startStream = async () => {
 
   isLoading.value = true
   try {
+    // Проверяем авторизацию
+    if (!userStore.isAuthenticated || !userStore.token) {
+      console.error('Пользователь не авторизован')
+      throw new Error('Необходимо авторизоваться')
+    }
+
     // Создаем объект с данными стрима
     const streamData = {
       title: streamTitle.value,
       description: streamDescription.value
     }
 
+    console.log('Создание стрима с данными:', streamData)
+
     // Используем метод createStream из хранилища стримов
     const result = await streamStore.createStream(streamData)
     
     if (result) {
-      // Если стрим создан успешно, переходим на страницу стрима
-      const newStreamId = streamStore.currentUserStreams[streamStore.currentUserStreams.length - 1].id
-      await router.push(`/stream/${newStreamId}`)
+      // Получаем ID нового стрима
+      await streamStore.fetchCurrentUserStreams()
+      
+      const userStreams = streamStore.currentUserStreams
+      if (userStreams && userStreams.length > 0) {
+        // Находим последний созданный стрим
+        const newStream = userStreams[userStreams.length - 1]
+        console.log('Стрим успешно создан:', newStream)
+        
+        if (newStream && newStream.id) {
+          console.log(`Переход на страницу стрима с ID: ${newStream.id}`)
+          
+          // Делаем небольшую задержку перед переходом, чтобы бэкенд успел обработать запрос
+          setTimeout(async () => {
+            try {
+              await router.push(`/stream/${newStream.id}`)
+            } catch (routerError) {
+              console.error('Ошибка при переходе на страницу стрима:', routerError)
+            }
+          }, 1000)
+        } else {
+          throw new Error('Не удалось получить ID нового стрима')
+        }
+      } else {
+        throw new Error('Список стримов пуст после создания')
+      }
     } else {
       throw new Error(streamStore.error || 'Не удалось создать стрим')
     }
   } catch (error) {
     console.error('Ошибка при создании стрима:', error)
-    alert('Не удалось создать стрим. Пожалуйста, попробуйте еще раз.')
+    alert(`Не удалось создать стрим: ${error.message || 'Неизвестная ошибка'}`)
   } finally {
     isLoading.value = false
   }

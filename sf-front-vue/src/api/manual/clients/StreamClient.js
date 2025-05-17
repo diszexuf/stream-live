@@ -1,4 +1,3 @@
-import HttpClient from './HttpClient';
 import StreamResponse from '../dto/StreamResponse';
 import StreamRequest from '../dto/StreamRequest';
 
@@ -7,10 +6,99 @@ import StreamRequest from '../dto/StreamRequest';
  */
 export default class StreamClient {
   /**
-   * @param {HttpClient} httpClient - HTTP-клиент для выполнения запросов
+   * @param {String} baseUrl - Базовый URL API
    */
-  constructor(httpClient = new HttpClient()) {
-    this.httpClient = httpClient;
+  constructor(baseUrl = 'http://localhost:8080/api') {
+    this.baseUrl = baseUrl;
+  }
+
+  /**
+   * Устанавливает токен авторизации
+   * @param {String} token - JWT токен
+   */
+  setAuthToken(token) {
+    this.authToken = token;
+  }
+
+  /**
+   * Очищает токен авторизации
+   */
+  clearAuthToken() {
+    this.authToken = null;
+  }
+
+  /**
+   * Формирует заголовки запроса
+   * @returns {Object} - Заголовки запроса
+   */
+  getHeaders() {
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
+
+    if (this.authToken) {
+      headers['Authorization'] = `Bearer ${this.authToken}`;
+    }
+
+    return headers;
+  }
+
+  /**
+   * Обрабатывает ответ от сервера
+   * @param {Response} response - Ответ от сервера
+   * @returns {Promise<Object>} - Обработанный результат
+   */
+  async handleResponse(response) {
+    if (!response.ok) {
+      const error = {
+        status: response.status,
+        statusText: response.statusText
+      };
+      
+      try {
+        const errorData = await response.json();
+        Object.assign(error, errorData);
+      } catch (e) {
+      }
+      
+      throw error;
+    }
+
+    if (response.status === 204) {
+      return null;
+    }
+
+    const contentLength = response.headers.get('content-length');
+    if (contentLength === '0') {
+      return null;
+    }
+
+    const contentType = response.headers.get('content-type');
+    
+    if (!contentType) {
+      return null;
+    }
+    
+    if (!contentType.includes('application/json')) {
+      try {
+        return await response.text();
+      } catch (error) {
+        return null;
+      }
+    }
+
+    try {
+      const text = await response.text();
+      
+      if (!text || text.trim() === '') {
+        return null;
+      }
+
+      return JSON.parse(text);
+    } catch (error) {
+      return null;
+    }
   }
 
   /**
@@ -18,8 +106,16 @@ export default class StreamClient {
    * @returns {Promise<Array<StreamResponse>>} - Список всех стримов
    */
   async getAllStreams() {
-    const data = await this.httpClient.get('/streams');
-    return data.map(StreamResponse.fromJson);
+    const url = `${this.baseUrl}/streams`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+
+    const data = await this.handleResponse(response);
+    return data ? data.map(StreamResponse.fromJson) : [];
   }
 
   /**
@@ -27,8 +123,16 @@ export default class StreamClient {
    * @returns {Promise<Array<StreamResponse>>} - Список активных стримов
    */
   async getLiveStreams() {
-    const data = await this.httpClient.get('/streams/live');
-    return data.map(StreamResponse.fromJson);
+    const url = `${this.baseUrl}/streams/live`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+
+    const data = await this.handleResponse(response);
+    return data ? data.map(StreamResponse.fromJson) : [];
   }
 
   /**
@@ -37,8 +141,20 @@ export default class StreamClient {
    * @returns {Promise<Array<StreamResponse>>} - Результаты поиска
    */
   async searchStreams(query) {
-    const data = await this.httpClient.get(`/streams/search?query=${encodeURIComponent(query)}`);
-    return data.map(StreamResponse.fromJson);
+    if (!query) {
+      throw new Error('Поисковый запрос не указан');
+    }
+    
+    const url = `${this.baseUrl}/streams/search?query=${encodeURIComponent(query)}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+
+    const data = await this.handleResponse(response);
+    return data ? data.map(StreamResponse.fromJson) : [];
   }
 
   /**
@@ -47,7 +163,19 @@ export default class StreamClient {
    * @returns {Promise<StreamResponse>} - Данные стрима
    */
   async getStreamById(streamId) {
-    const data = await this.httpClient.get(`/streams/${streamId}`);
+    if (!streamId) {
+      throw new Error('ID стрима не указан');
+    }
+    
+    const url = `${this.baseUrl}/streams/${streamId}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+
+    const data = await this.handleResponse(response);
     return StreamResponse.fromJson(data);
   }
 
@@ -57,8 +185,20 @@ export default class StreamClient {
    * @returns {Promise<Array<StreamResponse>>} - Список стримов пользователя
    */
   async getStreamsByUser(userId) {
-    const data = await this.httpClient.get(`/streams/user/${userId}`);
-    return data.map(StreamResponse.fromJson);
+    if (!userId) {
+      throw new Error('ID пользователя не указан');
+    }
+    
+    const url = `${this.baseUrl}/streams/user/${userId}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+
+    const data = await this.handleResponse(response);
+    return data ? data.map(StreamResponse.fromJson) : [];
   }
 
   /**
@@ -67,7 +207,16 @@ export default class StreamClient {
    * @returns {Promise<StreamResponse>} - Созданный стрим
    */
   async createStream(streamRequest) {
-    const data = await this.httpClient.post('/streams/me', streamRequest.toJson());
+    const url = `${this.baseUrl}/streams/me`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(streamRequest.toJson())
+    });
+
+    const data = await this.handleResponse(response);
     return StreamResponse.fromJson(data);
   }
 
@@ -77,7 +226,16 @@ export default class StreamClient {
    * @returns {Promise<StreamResponse>} - Обновленный стрим
    */
   async updateStream(streamRequest) {
-    const data = await this.httpClient.put('/streams/me', streamRequest.toJson());
+    const url = `${this.baseUrl}/streams/me`;
+    
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(streamRequest.toJson())
+    });
+
+    const data = await this.handleResponse(response);
     return StreamResponse.fromJson(data);
   }
 
@@ -86,6 +244,35 @@ export default class StreamClient {
    * @returns {Promise<void>} - Результат операции
    */
   async endStream() {
-    await this.httpClient.delete('/streams/me');
+    const url = `${this.baseUrl}/streams/me`;
+    
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+    
+    await this.handleResponse(response);
+  }
+
+  /**
+   * Завершает стрим по ID
+   * @param {String} streamId - ID стрима
+   * @returns {Promise<void>} - Результат операции
+   */
+  async endStreamById(streamId) {
+    if (!streamId) {
+      throw new Error('ID стрима не указан');
+    }
+    
+    const url = `${this.baseUrl}/streams/${streamId}`;
+    
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+    
+    await this.handleResponse(response);
   }
 } 

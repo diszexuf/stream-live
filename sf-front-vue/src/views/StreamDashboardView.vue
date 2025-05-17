@@ -133,10 +133,10 @@ const endCurrentStream = async () => {
 // Редактирование стрима
 const editStream = (stream) => {
   formData.value = {
-    title: stream.title,
+    title: stream.title || '',
     description: stream.description || '',
     thumbnailUrl: stream.thumbnailUrl || '',
-    tags: [...stream.tags]
+    tags: Array.isArray(stream.tags) ? [...stream.tags] : []
   }
   activeTab.value = 'edit'
 }
@@ -184,12 +184,23 @@ onMounted(async () => {
 
 <template>
   <v-container v-if="isAuthenticated">
-    <h1 class="text-h4 mb-4">Управление стримами</h1>
+    <div class="d-flex align-center justify-space-between mb-4">
+      <h1 class="text-h4">Управление стримами</h1>
+      <v-btn 
+        color="primary" 
+        :disabled="hasActiveStream" 
+        @click="activeTab = 'create'"
+        v-if="!hasActiveStream"
+      >
+        <v-icon start>mdi-plus</v-icon>
+        Создать стрим
+      </v-btn>
+    </div>
 
     <v-tabs v-model="activeTab" align-tabs="start" class="mb-4">
       <v-tab value="streams">Мои стримы</v-tab>
-      <v-tab value="create" :disabled="hasActiveStream">Создать стрим</v-tab>
       <v-tab value="edit" v-if="activeStream" :disabled="!hasActiveStream">Редактировать стрим</v-tab>
+      <v-tab value="create" v-if="!hasActiveStream">Создать стрим</v-tab>
     </v-tabs>
 
     <v-alert v-if="errorMessage" type="error" variant="tonal" border="start" class="mb-4">
@@ -212,13 +223,17 @@ onMounted(async () => {
             <p><strong>Зрителей:</strong> {{ activeStream.viewerCount }}</p>
             
             <div class="d-flex gap-2 mt-4">
-              <v-btn color="primary" @click="editStream(activeStream)">
+              <v-btn color="primary" class="mr-2" @click="editStream(activeStream)">
                 <v-icon start>mdi-pencil</v-icon>
                 Редактировать
               </v-btn>
-              <v-btn color="error" @click="endCurrentStream" :loading="isLoading">
+              <v-btn color="error" class="mr-2" @click="endCurrentStream" :loading="isLoading">
                 <v-icon start>mdi-stop</v-icon>
                 Завершить стрим
+              </v-btn>
+              <v-btn color="secondary" class="mr-2" :to="`/stream/${activeStream.id}`">
+                <v-icon start>mdi-eye</v-icon>
+                Просмотр стрима
               </v-btn>
             </div>
           </v-card-text>
