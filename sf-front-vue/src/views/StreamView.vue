@@ -24,20 +24,34 @@ const isStreamOwner = computed(() => {
   return streamStore.currentStream.userId === userStore.user.id
 })
 
+// Состояние для диалогового окна с инструкциями
+const showObsInstructions = ref(false)
+
+// Состояние для отображения streamKey
+const isStreamKeyVisible = ref(false)
+
 // Получение URL HLS потока
-const getHlsUrl = (streamId) => {
-  // URL HLS потока на основе ID стрима
-  return `http://localhost:8088/hls/${streamId}.m3u8`
+const getHlsUrl = (stream) => {
+  if (!stream || !stream.streamKey) return '';
+  
+  // URL HLS потока на основе streamKey
+  // Используем IP вместо localhost для лучшей совместимости с Docker
+  // Убираем расширение .m3u8, так как NGINX-RTMP может автоматически добавлять его
+  const url = `http://127.0.0.1:8088/hls/${stream.streamKey}/index.m3u8`;
+  console.log('HLS URL:', url);
+  return url;
 }
 
 // Обновление источника видео
-const updateVideoSource = (streamId) => {
-  if (!player.value || !streamId) return
+const updateVideoSource = (stream) => {
+  if (!player.value || !stream || !stream.streamKey) return
   
   const newSource = {
-    src: getHlsUrl(streamId),
+    src: getHlsUrl(stream),
     type: 'application/x-mpegURL'
   }
+  
+  console.log('Обновление источника видео:', newSource);
   
   player.value.src(newSource)
   player.value.load()
@@ -48,11 +62,21 @@ const updateVideoSource = (streamId) => {
 
 // Инициализация VideoJS плеера
 const initPlayer = () => {
-  if (!streamStore.currentStream || !streamStore.currentStream.isLive) return
+  if (!streamStore.currentStream || !streamStore.currentStream.isLive) {
+    console.log('Не инициализируем плеер: стрим не активен или не загружен', streamStore.currentStream);
+    return;
+  }
   
   // Находим элемент video
   const videoElement = document.getElementById('stream-video')
-  if (!videoElement) return
+  if (!videoElement) {
+    console.error('Элемент video не найден');
+    return;
+  }
+  
+  // URL для HLS потока
+  const hlsUrl = getHlsUrl(streamStore.currentStream);
+  console.log('Инициализация плеера с URL:', hlsUrl);
   
   // Опции для VideoJS
   const options = {
@@ -64,10 +88,12 @@ const initPlayer = () => {
     loadingSpinner: true,
     errorDisplay: true,
     sources: [{
-      src: getHlsUrl(streamStore.currentStream.id),
+      src: hlsUrl,
       type: 'application/x-mpegURL'
     }]
   }
+  
+  console.log('Опции плеера:', options);
   
   // Создаем экземпляр плеера
   player.value = videojs(videoElement, options, function onPlayerReady() {
@@ -75,12 +101,27 @@ const initPlayer = () => {
     
     // Обработка ошибок
     this.on('error', function() {
-      console.error('Ошибка воспроизведения видео:', this.error())
+      const error = this.error();
+      console.error('Ошибка воспроизведения видео:', error);
+      
+      // Пытаемся перезагрузить плеер при ошибке
+      if (error && error.code) {
+        console.log('Попытка перезагрузить плеер через 3 секунды...');
+        setTimeout(() => {
+          this.load();
+          this.play();
+        }, 3000);
+      }
     })
     
     // Обработка начала воспроизведения
     this.on('playing', function() {
       console.log('Воспроизведение началось')
+    })
+    
+    // Обработка буферизации
+    this.on('waiting', function() {
+      console.log('Буферизация...')
     })
   })
 }
@@ -129,6 +170,8 @@ const loadStream = async () => {
       console.error('Стрим не найден или произошла ошибка:', streamStore.error)
     } else {
       console.log('Стрим успешно загружен:', streamStore.currentStream)
+      console.log('Stream key:', streamStore.currentStream.streamKey)
+      
       // Инициализируем плеер после загрузки данных стрима
       setTimeout(() => {
         initPlayer()
@@ -230,13 +273,50 @@ const formatDate = (dateString) => {
   }
 }
 
+// Копирование ключа стрима
+const copyStreamKey = () => {
+  if (!streamStore.currentStream || !streamStore.currentStream.streamKey) return
+  
+  navigator.clipboard.writeText(streamStore.currentStream.streamKey)
+    .then(() => {
+      alert('Ключ стрима скопирован в буфер обмена')
+    })
+    .catch(err => {
+      console.error('Ошибка при копировании ключа стрима:', err)
+    })
+}
+
+// Переключение видимости ключа стрима
+const toggleStreamKeyVisibility = () => {
+  isStreamKeyVisible.value = !isStreamKeyVisible.value
+}
+
+// Получение маскированного значения ключа стрима
+const getMaskedStreamKey = (key) => {
+  if (!key) return ''
+  if (isStreamKeyVisible.value) return key
+  
+  // Показываем только первые 4 и последние 4 символа
+  const visiblePart = 4
+  if (key.length <= visiblePart * 2) {
+    return '*'.repeat(key.length)
+  }
+  
+  const start = key.substring(0, visiblePart)
+  const end = key.substring(key.length - visiblePart)
+  const masked = '*'.repeat(key.length - visiblePart * 2)
+  
+  return `${start}${masked}${end}`
+}
+
 // Наблюдение за изменением ID стрима
 watch(streamId, (newStreamId, oldStreamId) => {
   if (newStreamId !== oldStreamId) {
+    console.log(`ID стрима изменился с ${oldStreamId} на ${newStreamId}`)
     destroyPlayer()
     loadStream()
   }
-}, { immediate: false })
+}, { immediate: true })
 
 // Инициализация
 onMounted(async () => {
@@ -368,6 +448,105 @@ onUnmounted(() => {
                   <v-icon start>mdi-stop</v-icon>
                   Завершить стрим
                 </v-btn>
+              </div>
+              
+              <!-- Информация о ключе стрима (только для владельца) -->
+              <div v-if="isStreamOwner && streamStore.currentStream.streamKey" class="mt-4 pt-4 border-top">
+                <div class="d-flex align-center mb-2">
+                  <h3 class="text-subtitle-1 font-weight-bold mr-2">Ключ стрима (RTMP)</h3>
+                  <v-tooltip text="Этот ключ нужен для настройки OBS или другого ПО для стриминга">
+                    <template v-slot:activator="{ props }">
+                      <v-icon v-bind="props" size="small">mdi-help-circle-outline</v-icon>
+                    </template>
+                  </v-tooltip>
+                </div>
+                
+                <div class="d-flex align-center">
+                  <v-text-field
+                    :value="getMaskedStreamKey(streamStore.currentStream.streamKey)"
+                    readonly
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    class="flex-grow-1 mr-2"
+                    :append-icon="isStreamKeyVisible ? 'mdi-eye-off' : 'mdi-eye'"
+                    @click:append="toggleStreamKeyVisibility"
+                  >
+                    <template v-slot:prepend>
+                      <v-tooltip :text="isStreamKeyVisible ? 'Скрыть ключ' : 'Показать ключ'">
+                        <template v-slot:activator="{ props }">
+                          <v-icon 
+                            v-bind="props" 
+                            :color="isStreamKeyVisible ? 'warning' : 'primary'"
+                            @click="toggleStreamKeyVisibility"
+                          >
+                            {{ isStreamKeyVisible ? 'mdi-lock-open' : 'mdi-lock' }}
+                          </v-icon>
+                        </template>
+                      </v-tooltip>
+                    </template>
+                  </v-text-field>
+                  <v-btn 
+                    icon="mdi-content-copy" 
+                    variant="text" 
+                    density="compact"
+                    @click="copyStreamKey"
+                  ></v-btn>
+                </div>
+                
+                <div class="mt-2 text-caption">
+                  RTMP URL: rtmp://127.0.0.1:1935/live
+                </div>
+                
+                <v-btn 
+                  color="primary" 
+                  variant="text" 
+                  class="mt-2 px-0"
+                  @click="showObsInstructions = true"
+                >
+                  <v-icon start>mdi-information-outline</v-icon>
+                  Инструкция по настройке OBS
+                </v-btn>
+                
+                <!-- Диалоговое окно с инструкциями -->
+                <v-dialog v-model="showObsInstructions" max-width="600px">
+                  <v-card>
+                    <v-card-title class="text-h5">
+                      Настройка OBS для стриминга
+                    </v-card-title>
+                    <v-card-text>
+                      <p class="mb-4">Для начала стриминга через OBS Studio выполните следующие шаги:</p>
+                      
+                      <ol class="mb-4">
+                        <li class="mb-2">Откройте OBS Studio</li>
+                        <li class="mb-2">Перейдите в меню <strong>Настройки</strong> → <strong>Вещание</strong></li>
+                        <li class="mb-2">Выберите <strong>Сервис</strong>: Custom</li>
+                        <li class="mb-2">В поле <strong>Сервер</strong> введите: <code>rtmp://127.0.0.1:1935/live</code></li>
+                        <li class="mb-2">В поле <strong>Ключ потока</strong> введите: <code>{{ streamStore.currentStream.streamKey }}</code></li>
+                        <li class="mb-2">Нажмите <strong>OK</strong> для сохранения настроек</li>
+                        <li class="mb-2">Нажмите кнопку <strong>Начать трансляцию</strong> в главном окне OBS</li>
+                      </ol>
+                      
+                      <p>Через несколько секунд после начала трансляции в OBS, ваш стрим станет доступен для просмотра.</p>
+                      
+                      <div class="mt-4 pa-4 bg-grey-lighten-4 rounded">
+                        <p class="text-subtitle-1 font-weight-bold">Важно!</p>
+                        <p>Убедитесь, что:</p>
+                        <ul>
+                          <li>Docker-контейнер с RTMP-сервером запущен</li>
+                          <li>Порт 1935 доступен и не заблокирован брандмауэром</li>
+                          <li>OBS настроен на правильное разрешение и битрейт (рекомендуется 720p и 2500-3500 Kbps)</li>
+                        </ul>
+                      </div>
+                    </v-card-text>
+                    <v-card-actions>
+                      <v-spacer></v-spacer>
+                      <v-btn color="primary" @click="showObsInstructions = false">
+                        Закрыть
+                      </v-btn>
+                    </v-card-actions>
+                  </v-card>
+                </v-dialog>
               </div>
             </v-card-text>
           </v-card>
