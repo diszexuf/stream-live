@@ -61,8 +61,8 @@ public class UserController implements UsersApi {
   }
 
   @Override
-  public ResponseEntity<Void> updateUser(UUID id, UserUpdateRequestDto userUpdateRequestDto) {
-    updateUserUseCase.execute(id, userUpdateRequestDto);
+  public ResponseEntity<Void> updateUser(UserUpdateRequestDto userUpdateRequestDto) {
+    updateUserUseCase.execute(userUpdateRequestDto);
     return ResponseEntity.ok().build();
   }
 

@@ -1,51 +1,81 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
-import { UsersApi } from '@/api/src/index.js'
-import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const userStore = useUserStore()
-const usersApi = new UsersApi()
+
+const safeUserData = computed(() => {
+  if (!userStore.user) return {};
+  
+  return {
+    username: userStore.user.username || '',
+    email: userStore.user.email || '',
+    bio: userStore.user.bio || '',
+    avatarUrl: userStore.user.avatarUrl || 'https://picsum.photos/200/300',
+    followerCount: userStore.user.followerCount || 0
+  };
+});
 
 const activeTab = ref('info')
-const streamData = ref({
-  streamKey: ''
+const isStreamKeyVisible = ref(false)
+const streamKeyDisplay = computed(() => {
+  if (!userStore.user || !userStore.user.streamKey) return '';
+  return isStreamKeyVisible.value ? userStore.user.streamKey : '•'.repeat(userStore.user.streamKey.length);
 })
 
 const errorMessage = ref('')
 const isLoading = ref(false)
+const isUserLoading = ref(true)
+
+const fileInput = ref(null)
+
+const triggerFileUpload = () => {
+  fileInput.value.click()
+}
+
+const handleFileUpload = (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    // Здесь можно добавить логику для загрузки файла на сервер
+    // Пока просто обновляем URL аватара локально
+    if (userStore.user) {
+      userStore.user.avatarUrl = e.target.result
+    }
+  }
+  reader.readAsDataURL(file)
+}
 
 // Сохранение данных профиля
 const saveProfile = async () => {
+  if (!userStore.user) return
+
   isLoading.value = true
   errorMessage.value = ''
 
   const payload = {
     email: userStore.user.email,
-    bio: userStore.user.bio,
-    avatarUrl: userStore.user.avatarUrl,
+    bio: userStore.user.bio || '',
+    avatarUrl: userStore.user.avatarUrl || 'https://picsum.photos/200/300',
   }
 
   try {
-    await usersApi.updateUser(userStore.user.id, payload)
-    await userStore.fetchCurrentUser()
+    await userStore.updateCurrentUser(payload)
   } catch (error) {
-    console.error('Ошибка при обновлении профиля:', error.response?.data || error.message)
+    console.error('Ошибка при обновлении профиля:', error)
     errorMessage.value = 'Ошибка при сохранении профиля'
   } finally {
     isLoading.value = false
   }
 }
 
-// Получение ключа стрима
-const fetchStreamKey = async () => {
-  try {
-    const response = await usersApi.getStreamKey()
-    streamData.value.streamKey = response.newStreamKey
-  } catch (error) {
-    console.error('Ошибка при получении ключа стрима:', error)
-    streamData.value.streamKey = 'Не удалось загрузить ключ'
-  }
+// Переключение видимости ключа стрима
+const toggleStreamKeyVisibility = () => {
+  isStreamKeyVisible.value = !isStreamKeyVisible.value
 }
 
 // Сброс ключа стрима
@@ -53,8 +83,8 @@ const resetStreamKey = async () => {
   if (!confirm('Вы уверены, что хотите сбросить ключ стрима? Текущий стрим будет прерван.')) return
 
   try {
-    const response = await usersApi.updateStreamKey(userStore.user.id)
-    streamData.value.streamKey = response.newStreamKey
+    await userStore.regenerateStreamKey()
+    isStreamKeyVisible.value = true
   } catch (error) {
     console.error('Ошибка при сбросе ключа:', error)
     errorMessage.value = 'Не удалось сбросить ключ стрима'
@@ -63,27 +93,60 @@ const resetStreamKey = async () => {
 
 // Копирование ключа стрима
 const copyStreamKey = () => {
-  navigator.clipboard.writeText(streamData.value.streamKey)
+  if (!userStore.user || !userStore.user.streamKey) return
+  
+  navigator.clipboard.writeText(userStore.user.streamKey)
       .then(() => alert('Ключ стрима скопирован'))
       .catch(err => console.error('Ошибка копирования:', err))
 }
 
+// Загрузка данных пользователя
+const loadUserData = async () => {
+  isUserLoading.value = true
+  
+  try {
+    if (!userStore.user) {
+      await userStore.fetchCurrentUser()
+      console.log('Загруженные данные пользователя:', userStore.user)
+    }
+  } catch (error) {
+    console.error('Ошибка при загрузке данных пользователя:', error)
+    if (!userStore.isAuthenticated) {
+      router.push('/login')
+    }
+  } finally {
+    isUserLoading.value = false
+  }
+}
+
 onMounted(async () => {
-  await fetchStreamKey()
+  await loadUserData()
 })
 </script>
 
 <template>
-  <v-container>
+  <v-container v-if="!isUserLoading && userStore.user">
     <h1 class="text-h4 mb-4">Профиль пользователя</h1>
 
     <v-card>
       <v-card-item>
-        <v-avatar size="100" class="mr-4">
-          <v-img :src="userStore.user.avatarUrl || 'https://i.imgur.com/XzZDFqy.jpg '" cover></v-img>
-        </v-avatar>
-        <v-card-title>{{ userStore.user.username }}</v-card-title>
-        <v-card-subtitle>{{ userStore.user.followerCount }} подписчиков</v-card-subtitle>
+        <div class="position-relative d-inline-block mr-4">
+          <v-avatar size="100" class="cursor-pointer" border @click="triggerFileUpload">
+            <v-img :src="safeUserData.avatarUrl" cover></v-img>
+            <div class="avatar-overlay d-flex align-center justify-center">
+              <v-icon>mdi-camera</v-icon>
+            </div>
+          </v-avatar>
+          <input 
+            ref="fileInput" 
+            type="file" 
+            accept="image/*" 
+            class="d-none" 
+            @change="handleFileUpload"
+          />
+        </div>
+        <v-card-title>{{ safeUserData.username }}</v-card-title>
+        <v-card-subtitle>{{ safeUserData.followerCount }} подписчиков</v-card-subtitle>
       </v-card-item>
 
       <v-tabs v-model="activeTab" align-tabs="start">
@@ -113,12 +176,6 @@ onMounted(async () => {
                   class="mb-4"
               ></v-textarea>
 
-              <v-text-field
-                  v-model="userStore.user.avatarUrl"
-                  label="Аватар (URL)"
-                  class="mb-4"
-              ></v-text-field>
-
               <v-btn type="submit" color="primary" :loading="isLoading">Сохранить изменения</v-btn>
 
               <v-alert v-if="errorMessage" type="error" variant="tonal" border="start" class="mt-4">
@@ -127,7 +184,6 @@ onMounted(async () => {
             </v-form>
           </v-window-item>
 
-          <!-- Настройки стрима -->
           <v-window-item value="stream">
             <v-card variant="outlined" class="mb-4">
               <v-card-title>Ключ стрима</v-card-title>
@@ -135,12 +191,27 @@ onMounted(async () => {
                 <v-row>
                   <v-col cols="12" sm="8">
                     <v-text-field
-                        v-model="streamData.streamKey"
+                        v-model="streamKeyDisplay"
                         readonly
                         variant="outlined"
                         density="compact"
                         hide-details
-                    ></v-text-field>
+                        class="stream-key-field"
+                        @click="toggleStreamKeyVisibility"
+                        :append-icon="isStreamKeyVisible ? 'mdi-eye-off' : 'mdi-eye'"
+                        @click:append="toggleStreamKeyVisibility"
+                    >
+                      <template v-slot:prepend>
+                        <v-tooltip location="top">
+                          <template v-slot:activator="{ props }">
+                            <v-icon v-bind="props" color="primary">
+                              {{ isStreamKeyVisible ? 'mdi-lock-open' : 'mdi-lock' }}
+                            </v-icon>
+                          </template>
+                          <span>{{ isStreamKeyVisible ? 'Ключ виден' : 'Ключ скрыт' }}</span>
+                        </v-tooltip>
+                      </template>
+                    </v-text-field>
                   </v-col>
                   <v-col cols="12" sm="4" class="d-flex gap-2">
                     <v-btn @click="copyStreamKey">
@@ -159,8 +230,52 @@ onMounted(async () => {
               </v-card-text>
             </v-card>
           </v-window-item>
+          
         </v-window>
       </v-card-text>
     </v-card>
   </v-container>
+
+  <v-container v-else-if="isUserLoading">
+    <div class="d-flex justify-center align-center" style="height: 300px;">
+      <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+    </div>
+  </v-container>
+
+  <v-container v-else>
+    <v-alert type="error" variant="tonal" border="start">
+      Не удалось загрузить данные профиля. Пожалуйста, убедитесь, что вы авторизованы.
+    </v-alert>
+    <div class="text-center mt-4">
+      <v-btn color="primary" to="/login">Войти</v-btn>
+    </div>
+  </v-container>
 </template>
+
+<style scoped>
+.avatar-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.3s;
+  color: white;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.cursor-pointer:hover .avatar-overlay {
+  opacity: 1;
+}
+
+.stream-key-field {
+  cursor: pointer;
+  font-family: monospace;
+}
+</style>

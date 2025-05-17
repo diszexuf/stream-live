@@ -290,8 +290,6 @@ paths:
       tags: [ users ]
       summary: Update user profile
       operationId: updateUser
-      parameters:
-        - $ref: '#/components/parameters/UserId'
       security:
         - bearerAuth: [ ]
       requestBody:

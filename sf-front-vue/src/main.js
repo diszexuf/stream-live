@@ -10,6 +10,9 @@ import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import '@mdi/font/css/materialdesignicons.css'
 
+// Импортируем HTTP-клиент
+import { httpClient } from './api/manual'
+
 const vuetify = createVuetify({
     components,
     directives,
@@ -43,10 +46,36 @@ const vuetify = createVuetify({
     }
 })
 
+// Настройка обработки ошибок CORS
+httpClient.handleResponse = async function(response) {
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        
+        // Логирование ошибок CORS
+        if (response.status === 0 || response.type === 'opaque') {
+            console.error('CORS Error:', response);
+        }
+        
+        throw {
+            status: response.status,
+            statusText: response.statusText,
+            ...error
+        };
+    }
+
+    // Для ответов без тела (например, 204 No Content)
+    if (response.status === 204) {
+        return null;
+    }
+
+    return response.json();
+};
+
 const pinia = createPinia()
 const app = createApp(App)
 
+// Инициализация приложения
+app.use(pinia)
 app.use(router)
 app.use(vuetify)
-app.use(pinia)
 app.mount('#app')

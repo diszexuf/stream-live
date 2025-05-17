@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import SearchBar from './SearchBar.vue'
@@ -9,7 +9,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const searchQuery = ref('')
 
-const isAuthenticated = userStore.isAuthenticated
+const isAuthenticated = computed(() => userStore.isAuthenticated)
 
 const handleLogout = () => {
   userStore.logout()

@@ -1,0 +1,7 @@
+{
+  "generateUserAgent": false,
+  "usePromises": true,
+  "withSeparateModelsAndApi": true,
+  "apiSuffix": "Service",
+  "modelPropertyNaming": "camelCase"
+} 

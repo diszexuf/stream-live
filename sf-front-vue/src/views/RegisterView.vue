@@ -13,6 +13,7 @@ const password = ref('')
 const confirmPassword = ref('')
 const errorMessage = ref('')
 const isLoading = ref(false)
+const privacyPolicyAccepted = ref(false)
 
 const register = async () => {
   if (!username.value || !email.value || !password.value || !confirmPassword.value) {
@@ -22,6 +23,11 @@ const register = async () => {
 
   if (password.value !== confirmPassword.value) {
     errorMessage.value = 'Пароли не совпадают'
+    return
+  }
+
+  if (!privacyPolicyAccepted.value) {
+    errorMessage.value = 'Необходимо принять политику конфиденциальности'
     return
   }
 
@@ -95,6 +101,22 @@ const register = async () => {
           density="comfortable"
       ></v-text-field>
 
+      <v-checkbox
+          v-model="privacyPolicyAccepted"
+          color="primary"
+          hide-details
+          class="mb-4"
+      >
+        <template v-slot:label>
+          <div>
+            Я согласен с 
+            <router-link to="/privacy-policy" target="_blank" class="text-primary">
+              политикой конфиденциальности
+            </router-link>
+          </div>
+        </template>
+      </v-checkbox>
+
       <v-alert
           v-if="errorMessage"
           type="error"
@@ -109,6 +131,7 @@ const register = async () => {
           type="submit"
           block
           :loading="isLoading"
+          :disabled="!privacyPolicyAccepted"
           class="mt-2"
       >
         Зарегистрироваться

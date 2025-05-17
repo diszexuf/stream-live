@@ -4,9 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "clean:api": "rimraf src/api",
-    "generate:api": "openapi-generator-cli generate -i ../src/main/resources/openapi.yaml -g javascript -o src/api --additional-properties=usePromises=true,withSeparateModelsAndApi=true,apiSuffix=Service,modelPropertyNaming=camelCase,generateUserAgent=false",
-    "start": "npm run clean:api && npm run generate:api && npm run dev",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"

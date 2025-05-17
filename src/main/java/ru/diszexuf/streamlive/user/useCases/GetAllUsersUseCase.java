@@ -7,7 +7,6 @@ import ru.diszexuf.streamlive.common.UseCase;
 import ru.diszexuf.streamlive.model.UserResponseDto;
 import ru.diszexuf.streamlive.user.User;
 import ru.diszexuf.streamlive.user.UserRepository;
-import ru.diszexuf.streamlive.user.UserMapper;
 
 import java.util.List;
 
@@ -17,12 +16,22 @@ import java.util.List;
 @Slf4j
 public class GetAllUsersUseCase {
   private final UserRepository userRepository;
-  private final UserMapper userMapper;
 
   public List<UserResponseDto> execute() {
     log.info("Get all users");
     List<User> users = userRepository.findAll();
-    return userMapper.mapToDtos(users);
+    List<UserResponseDto> dtos = users.stream().map(this::mapToDto).toList();
+    return dtos;
   }
 
+  public UserResponseDto mapToDto(User user) {
+    return new UserResponseDto()
+        .id(user.getId())
+        .username(user.getUsername())
+        .email(user.getEmail())
+        .avatarUrl(user.getAvatarUrl())
+        .bio(user.getBio())
+        .followerCount(user.getFollowerCount())
+        .streamKey(user.getStreamKey());
+  }
 }
