@@ -2,11 +2,13 @@
   <v-text-field
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
+    @keyup.enter="$emit('search')"
     placeholder="Поиск стримов..."
     prepend-inner-icon="mdi-magnify"
     variant="outlined"
     density="compact"
     hide-details
+    clearable
   ></v-text-field>
 </template>
 
@@ -18,5 +20,5 @@ defineProps({
   }
 })
 
-defineEmits(['update:modelValue'])
+defineEmits(['update:modelValue', 'search'])
 </script> 

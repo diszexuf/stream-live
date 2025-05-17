@@ -1,45 +1,39 @@
 <script setup>
 import {ref, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
-import axios from 'axios'
 import {useUserStore} from '@/stores/user'
+import {useStreamStore} from '@/stores/stream'
 
 const router = useRouter()
 const userStore = useUserStore()
+const streamStore = useStreamStore()
 const streamTitle = ref('')
 const streamDescription = ref('')
 const isLoading = ref(false)
-const tags = ref([])
-const apiUrl = 'http://localhost:8080/api'
+
 const startStream = async () => {
-  if (!streamTitle.value || !selectedCategoryId.value) {
-    alert('Пожалуйста, заполните все обязательные поля')
+  if (!streamTitle.value) {
+    alert('Пожалуйста, введите название стрима')
     return
   }
 
   isLoading.value = true
   try {
-    if (!userStore.user?.id) {
-      await userStore.fetchUser()
-      if (!userStore.user?.id) {
-        throw new Error('Пользователь не авторизован')
-      }
+    // Создаем объект с данными стрима
+    const streamData = {
+      title: streamTitle.value,
+      description: streamDescription.value
     }
 
-    const response = await axios.post(`${apiUrl}/streams`, {
-      title: streamTitle.value,
-      description: streamDescription.value,
-    }, {
-      params: {
-        userId: userStore.user.id,
-      }
-    })
-
-    if (response.data && response.data.id) {
-      await axios.post(`${apiUrl}/streams/${response.data.id}/start`)
-      await router.push(`/stream/${response.data.id}`)
+    // Используем метод createStream из хранилища стримов
+    const result = await streamStore.createStream(streamData)
+    
+    if (result) {
+      // Если стрим создан успешно, переходим на страницу стрима
+      const newStreamId = streamStore.currentUserStreams[streamStore.currentUserStreams.length - 1].id
+      await router.push(`/stream/${newStreamId}`)
     } else {
-      throw new Error('Неверный ответ от сервера')
+      throw new Error(streamStore.error || 'Не удалось создать стрим')
     }
   } catch (error) {
     console.error('Ошибка при создании стрима:', error)
@@ -51,7 +45,7 @@ const startStream = async () => {
 
 onMounted(async () => {
   if (!userStore.user) {
-    await userStore.fetchUser()
+    await userStore.fetchCurrentUser()
   }
 })
 

@@ -56,6 +56,11 @@ export const useUserStore = defineStore('user', () => {
     // Получение текущего пользователя
     const fetchCurrentUser = async () => {
         try {
+            // Убедимся, что токен установлен перед запросом
+            if (token.value) {
+                setAuthToken(token.value);
+            }
+            
             const userResponse = await userClient.getCurrentUserProfile();
             // Преобразуем UserResponse в обычный объект
             user.value = {
@@ -63,7 +68,7 @@ export const useUserStore = defineStore('user', () => {
                 username: userResponse.username || '',
                 email: userResponse.email || '',
                 avatarUrl: userResponse.avatarUrl || '',
-                bio: userResponse.bio || '',
+                bio: typeof userResponse.bio === 'object' ? '' : (userResponse.bio || ''),
                 followerCount: userResponse.followerCount || 0,
                 streamKey: userResponse.streamKey || ''
             };
@@ -72,10 +77,8 @@ export const useUserStore = defineStore('user', () => {
             if (!user.value.streamKey) {
                 await fetchStreamKey();
             }
-            
-            console.log('Загруженные данные пользователя:', user.value);
         } catch (error) {
-            console.error('Ошибка при загрузке профиля:', error.statusText || error.message);
+            console.error('Ошибка при загрузке профиля:', error);
             user.value = null;
             throw error;
         }
@@ -100,6 +103,11 @@ export const useUserStore = defineStore('user', () => {
         if (!user.value) throw new Error('Пользователь не загружен');
 
         try {
+            // Убедимся, что токен установлен перед запросом
+            if (token.value) {
+                setAuthToken(token.value);
+            }
+            
             const dto = new UserUpdateRequest(updateData);
             const updatedUser = await userClient.updateUser(dto);
             // Преобразуем UserResponse в обычный объект
@@ -114,7 +122,7 @@ export const useUserStore = defineStore('user', () => {
             };
             return true;
         } catch (error) {
-            console.error('Ошибка при обновлении профиля:', error.statusText || error.message);
+            console.error('Ошибка при обновлении профиля:', error);
             return false;
         }
     }
@@ -147,6 +155,9 @@ export const useUserStore = defineStore('user', () => {
         isAuthenticated.value = !!token.value;
         if (isAuthenticated.value && !user.value) {
             try {
+                if (token.value) {
+                    setAuthToken(token.value);
+                }
                 await fetchCurrentUser();
             } catch (e) {
                 console.warn('Не удалось получить профиль', e);

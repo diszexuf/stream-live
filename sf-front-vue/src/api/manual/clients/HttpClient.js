@@ -35,6 +35,7 @@ export default class HttpClient {
     };
 
     if (this.authToken) {
+      // Восстанавливаем стандартный формат токена с префиксом Bearer
       headers['Authorization'] = `Bearer ${this.authToken}`;
     }
 
@@ -133,6 +134,27 @@ export default class HttpClient {
       return null;
     }
 
-    return response.json();
+    // Проверяем, есть ли контент в ответе
+    const contentType = response.headers.get('content-type');
+    const contentLength = response.headers.get('content-length');
+    
+    // Если контент отсутствует или его длина равна 0, возвращаем null
+    if (!contentType || contentLength === '0') {
+      return null;
+    }
+    
+    // Если контент-тип не JSON, возвращаем текст или null
+    if (!contentType.includes('application/json')) {
+      return response.text().catch(() => null);
+    }
+
+    // Парсим JSON с обработкой ошибок
+    try {
+      return await response.json();
+    } catch (error) {
+      console.error('Ошибка при разборе JSON:', error);
+      // Возвращаем пустой объект вместо ошибки
+      return {};
+    }
   }
 } 

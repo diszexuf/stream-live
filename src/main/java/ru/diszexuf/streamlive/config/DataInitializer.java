@@ -31,70 +31,70 @@ public class DataInitializer implements CommandLineRunner {
     User alice = createUser("alice", "alice@example.com");
     User bob = createUser("bob", "bob@example.com");
     User charlie = createUser("charlie", "charlie@example.com");
+    User diana = createUser("diana", "diana@example.com");
+    User eve = createUser("eve", "eve@example.com");
 
-    userRepository.saveAll(List.of(alice, bob, charlie));
+    userRepository.saveAll(List.of(alice, bob, charlie, diana, eve));
 
     // Подписки
-    followRepository.save(Follow.builder()
-        .follower(alice)
-        .following(bob)
-        .build());
+    followRepository.save(Follow.builder().follower(alice).following(bob).build());
+    followRepository.save(Follow.builder().follower(charlie).following(alice).build());
+    followRepository.save(Follow.builder().follower(diana).following(eve).build());
+    followRepository.save(Follow.builder().follower(eve).following(alice).build());
 
-    followRepository.save(Follow.builder()
-        .follower(charlie)
-        .following(alice)
-        .build());
+    // Стримы Alice (2)
+    createAndSaveStream(alice, "Готовим вкусно", Set.of("кулинария", "еда", "дом"), true, LocalDateTime.now().minusMinutes(10), 42);
+    createAndSaveStream(alice, "Тихий вечер", Set.of(), false, LocalDateTime.now().minusHours(2), 3);
 
-    // Стримы Alice
-    streamRepository.save(Stream.builder()
-        .user(alice)
-        .title("Alice's Cooking Stream")
-        .description("Cooking delicious food live!")
-        .thumbnailUrl("https://picsum.photos/200/300")
-        .streamKey(UUID.randomUUID())
-        .tags(Set.of("cooking", "live", "fun"))
-        .isLive(true)
-        .startedAt(LocalDateTime.now().minusMinutes(10))
-        .viewersCount(42)
-        .build());
+    // Стримы Bob (3)
+    createAndSaveStream(bob, "Играем вместе", Set.of("игры", "онлайн"), true, LocalDateTime.now().minusMinutes(20), 10);
+    createAndSaveStream(bob, "Боб делится новостями", Set.of("жизнь", "блог"), false, LocalDateTime.now().minusDays(1), 5);
+    createAndSaveStream(bob, "Прямой эфир: Пишем код", Set.of("программирование", "разработка"), true, LocalDateTime.now().minusMinutes(30), 15);
 
-    streamRepository.save(Stream.builder()
-        .user(alice)
-        .title("Quiet Stream")
-        .description("Just chilling")
-        .thumbnailUrl("https://picsum.photos/200/300")
-        .streamKey(UUID.randomUUID())
-        .tags(Set.of()) // без тегов
-        .isLive(false)
-        .endedAt(LocalDateTime.now().minusHours(2))
-        .viewersCount(3)
-        .build());
+    // Стримы Charlie (2)
+    createAndSaveStream(charlie, "Чарли о технологиях", Set.of("технологии", "интернет"), true, LocalDateTime.now().minusMinutes(5), 8);
+    createAndSaveStream(charlie, "Философские мысли", Set.of("размышления"), false, LocalDateTime.now().minusHours(3), 1);
 
-    // Стримы Bob
-    streamRepository.save(Stream.builder()
-        .user(bob)
-        .title("Gaming with Bob")
-        .description("Let's play together!")
-        .thumbnailUrl("https://picsum.photos/200/300")
-        .streamKey(UUID.randomUUID())
-        .tags(Set.of("gaming", "fps"))
-        .isLive(true)
-        .startedAt(LocalDateTime.now().minusMinutes(20))
-        .viewersCount(10)
-        .build());
+    // Стримы Diana (3)
+    createAndSaveStream(diana, "Арт-мастерская Дианы", Set.of("живопись", "рисование"), true, LocalDateTime.now().minusMinutes(15), 7);
+    createAndSaveStream(diana, "Вечерние зарисовки", Set.of("эскизы", "расслабление"), false, LocalDateTime.now().minusHours(5), 2);
+    createAndSaveStream(diana, "Урок живописи онлайн", Set.of("урок", "акварель"), true, LocalDateTime.now().minusMinutes(45), 9);
+
+    // Стримы Eve (3)
+    createAndSaveStream(eve, "Музыка в прямом эфире", Set.of("пение", "живое выступление"), true, LocalDateTime.now().minusMinutes(8), 12);
+    createAndSaveStream(eve, "Теория музыки", Set.of("теория", "музыкальная грамота"), false, LocalDateTime.now().minusHours(4), 6);
+    createAndSaveStream(eve, "Джем-сейшн в прямом эфиру", Set.of("джаз", "совместное исполнение"), true, LocalDateTime.now().minusMinutes(12), 14);
   }
 
   private User createUser(String username, String email) {
+    UUID streamKey = UUID.randomUUID();
+
     return User.builder()
         .username(username)
-        .password("{noop}password") // без шифрования для тестов
+        .password("{noop}password")
         .email(email)
-        .streamKey(UUID.randomUUID())
+        .streamKey(streamKey)
         .enabled(true)
         .authorities(Set.of("ROLE_USER"))
-        .avatarUrl("https://picsum.photos/200/300")
-        .bio("Bio of " + username)
+        .avatarUrl("https://picsum.photos/200/300 ")
+        .bio("Описание пользователя " + username)
         .followerCount(0)
         .build();
+  }
+
+  private void createAndSaveStream(User user, String title, Set<String> tags,
+                                   boolean isLive, LocalDateTime startedAt, int viewersCount) {
+    streamRepository.save(Stream.builder()
+        .user(user)
+        .title(title)
+        .description(title + "... подробнее в прямом эфире!")
+        .thumbnailUrl("https://picsum.photos/200/300 ")
+        .streamKey(user.getStreamKey()) // <-- Берём streamKey из пользователя
+        .tags(tags)
+        .isLive(isLive)
+        .startedAt(startedAt)
+        .endedAt(isLive ? null : startedAt.plusHours(2))
+        .viewersCount(viewersCount)
+        .build());
   }
 }

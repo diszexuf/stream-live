@@ -11,7 +11,7 @@ export default class UserUpdateRequest {
   constructor(data = {}) {
     this.email = data.email;
     this.avatarUrl = data.avatarUrl;
-    this.bio = data.bio;
+    this.bio = typeof data.bio === 'object' ? '' : (data.bio || '');
   }
 
   /**
@@ -29,9 +29,8 @@ export default class UserUpdateRequest {
       result.avatarUrl = this.avatarUrl;
     }
 
-    if (this.bio !== undefined) {
-      result.bio = this.bio;
-    }
+    // Всегда отправляем bio как строку, даже если это пустая строка
+    result.bio = typeof this.bio === 'object' ? '' : (this.bio || '');
 
     return result;
   }

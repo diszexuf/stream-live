@@ -35,7 +35,11 @@ export default class HttpClient {
     };
 
     if (this.authToken) {
+      // Восстанавливаем стандартный формат токена с префиксом Bearer
       headers['Authorization'] = `Bearer ${this.authToken}`;
+      console.log('Using token for request:', this.authToken.substring(0, 10) + '...');
+    } else {
+      console.warn('No auth token available for request');
     }
 
     return headers;
@@ -48,6 +52,7 @@ export default class HttpClient {
    */
   async get(path) {
     const url = `${this.baseUrl}${path}`;
+    console.log(`GET request to: ${url}`);
     
     const response = await fetch(url, {
       method: 'GET',
@@ -66,6 +71,7 @@ export default class HttpClient {
    */
   async post(path, data) {
     const url = `${this.baseUrl}${path}`;
+    console.log(`POST request to: ${url}`, data);
     
     const response = await fetch(url, {
       method: 'POST',

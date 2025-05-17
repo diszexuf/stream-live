@@ -34,7 +34,7 @@ public class CreateStreamUseCase {
     Stream stream = Stream.builder()
         .user(user)
         .title(streamRequestDto.getTitle())
-        .description(streamRequestDto.getDescription().get())
+        .description(streamRequestDto.getDescription())
         .thumbnailUrl(streamRequestDto.getThumbnailUrl() != null ?
             streamRequestDto.getThumbnailUrl() : "https://picsum.photos/200/300")
         .streamKey(user.getStreamKey())

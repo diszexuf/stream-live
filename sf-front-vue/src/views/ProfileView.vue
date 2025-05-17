@@ -1,10 +1,12 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, nextTick } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const userStore = useUserStore()
+
+const bioText = ref('')
 
 const safeUserData = computed(() => {
   if (!userStore.user) return {};
@@ -12,7 +14,7 @@ const safeUserData = computed(() => {
   return {
     username: userStore.user.username || '',
     email: userStore.user.email || '',
-    bio: userStore.user.bio || '',
+    bio: typeof userStore.user.bio === 'object' ? '' : (userStore.user.bio || ''),
     avatarUrl: userStore.user.avatarUrl || 'https://picsum.photos/200/300',
     followerCount: userStore.user.followerCount || 0
   };
@@ -57,16 +59,26 @@ const saveProfile = async () => {
   isLoading.value = true
   errorMessage.value = ''
 
+  // Проверяем и обрабатываем поле bio
+  const bioValue = typeof bioText.value === 'object' ? '' : (bioText.value || '')
+
   const payload = {
     email: userStore.user.email,
-    bio: userStore.user.bio || '',
+    bio: bioValue,
     avatarUrl: userStore.user.avatarUrl || 'https://picsum.photos/200/300',
   }
+
+  console.log('Отправка данных профиля:', payload)
 
   try {
     const result = await userStore.updateCurrentUser(payload)
     if (result) {
       alert('Профиль успешно обновлен')
+      
+      // Обновляем локальное значение bio после успешного сохранения
+      if (userStore.user) {
+        userStore.user.bio = bioValue
+      }
     } else {
       errorMessage.value = 'Не удалось обновить профиль'
     }
@@ -88,8 +100,19 @@ const resetStreamKey = async () => {
   if (!confirm('Вы уверены, что хотите сбросить ключ стрима? Текущий стрим будет прерван.')) return
 
   try {
-    await userStore.regenerateStreamKey()
-    isStreamKeyVisible.value = true
+    const newKey = await userStore.regenerateStreamKey()
+    if (newKey) {
+      // Сначала обновляем ключ в пользовательских данных
+      if (userStore.user) {
+        userStore.user.streamKey = newKey
+      }
+      
+      // Затем делаем ключ видимым
+      isStreamKeyVisible.value = true
+      
+      // Используем nextTick для гарантии обновления DOM
+      await nextTick()
+    }
   } catch (error) {
     console.error('Ошибка при сбросе ключа:', error)
     errorMessage.value = 'Не удалось сбросить ключ стрима'
@@ -113,6 +136,11 @@ const loadUserData = async () => {
     if (!userStore.user) {
       await userStore.fetchCurrentUser()
       console.log('Загруженные данные пользователя:', userStore.user)
+    }
+    
+    // Инициализация bioText
+    if (userStore.user) {
+      bioText.value = typeof userStore.user.bio === 'object' ? '' : (userStore.user.bio || '')
     }
   } catch (error) {
     console.error('Ошибка при загрузке данных пользователя:', error)
@@ -174,7 +202,7 @@ onMounted(async () => {
               ></v-text-field>
 
               <v-textarea
-                  v-model="userStore.user.bio"
+                  v-model="bioText"
                   label="О себе"
                   rows="4"
                   auto-grow

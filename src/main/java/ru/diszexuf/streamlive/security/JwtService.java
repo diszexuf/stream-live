@@ -17,7 +17,7 @@ public class JwtService {
   private final SecretKey secretKey;
 
   public JwtService() {
-    this.secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS256); // Генерируем безопасный ключ
+    this.secretKey = Keys.hmacShaKeyFor("my-secret-key-12345-my-secret-key-12345".getBytes()); //todo придумать ключ и вынести в .env
   }
 
   public String extractUsername(String token) {

@@ -71,11 +71,9 @@ components:
           example: "securePassword123"
         avatarUrl:
           type: string
-          nullable: true
           example: "https://example.com/avatar.jpg"
         bio:
           type: string
-          nullable: true
           maxLength: 500
           example: "Streamer and gamer"
 
@@ -94,10 +92,8 @@ components:
           example: "john@example.com"
         avatarUrl:
           type: string
-          nullable: true
         bio:
           type: string
-          nullable: true
         followerCount:
           type: integer
           minimum: 0
@@ -114,13 +110,10 @@ components:
         email:
           type: string
           format: email
-          nullable: true
         avatarUrl:
           type: string
-          nullable: true
         bio:
           type: string
-          nullable: true
           maxLength: 500
 
     StreamRequest:
@@ -134,7 +127,6 @@ components:
           example: "My Awesome Stream"
         description:
           type: string
-          nullable: true
           maxLength: 500
         tags:
           type: array
@@ -158,10 +150,8 @@ components:
           type: string
         description:
           type: string
-          nullable: true
         thumbnailUrl:
           type: string
-          nullable: true
         streamKey:
           type: string
           format: uuid
@@ -174,11 +164,9 @@ components:
         startedAt:
           type: string
           format: date-time
-          nullable: true
         endedAt:
           type: string
           format: date-time
-          nullable: true
         viewerCount:
           type: integer
           minimum: 0

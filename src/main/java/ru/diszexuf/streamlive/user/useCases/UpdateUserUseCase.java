@@ -22,8 +22,9 @@ public class UpdateUserUseCase {
     String username = SecurityContextHolder.getContext().getAuthentication().getName();
     User user = userRepository.findByUsername(username)
         .orElseThrow(() -> new NoSuchElementException("User not found"));
-    user.setBio(dto.getBio().get());
-    user.setAvatarUrl(dto.getAvatarUrl().toString());
+
+    user.setBio(dto.getBio());
+    user.setAvatarUrl(dto.getAvatarUrl());
     userRepository.save(user);
   }
 }

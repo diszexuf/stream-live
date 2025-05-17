@@ -1,376 +1,266 @@
-<script>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+<script setup>
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import axios from 'axios'
+import { useStreamStore } from '@/stores/stream'
 import { useUserStore } from '@/stores/user'
-import videojs from 'video.js'
-import 'video.js/dist/video-js.css'
-import '@videojs/http-streaming'
 
-export default {
-  name: 'StreamView',
-  setup() {
-    const route = useRoute()
-    const router = useRouter()
-    const userStore = useUserStore()
-    const stream = ref(null)
-    const updateInterval = ref(null)
-    const isLoading = ref(false)
-    const videoPlayer = ref(null)
-    const player = ref(null)
-    const apiUrl = 'http://localhost:8080/api'
-    const manualStreamKey = ref('')
-    const availableStreamKeys = ref('')
+const route = useRoute()
+const router = useRouter()
+const streamStore = useStreamStore()
+const userStore = useUserStore()
 
-    const isStreamer = computed(() => {
-      if (!userStore.user || !stream.value || !stream.value.user) {
-        return false
-      }
-      return userStore.user.id === stream.value.user.id
-    })
+const streamId = computed(() => route.params.id)
+const isLoading = ref(true)
+const errorMessage = ref('')
 
-    /* логика чата
-    const chatMessages = ref([
-      {
-        id: 1,
-        username: 'User1',
-        text: 'Привет всем!',
-        avatar: 'https://i.imgur.com/Q9WPlWA.jpg'
-      },
-      {
-        id: 2,
-        username: 'User2',
-        text: 'Какой классный стрим!',
-        avatar: 'https://i.imgur.com/OxWWm2g.jpg'
-      }
-    ])
+// Вычисляемые свойства
+const isAuthenticated = computed(() => userStore.isAuthenticated)
+const isStreamOwner = computed(() => {
+  if (!userStore.user || !streamStore.currentStream) return false
+  return streamStore.currentStream.userId === userStore.user.id
+})
 
-    const newMessage = ref('')
-    */
+// Загрузка данных стрима
+const loadStream = async () => {
+  if (!streamId.value) {
+    router.push('/')
+    return
+  }
 
-    const fetchStream = async (id) => {
-      try {
-        const response = await axios.get(`${apiUrl}/streams/${id}`)
-        stream.value = response.data
+  isLoading.value = true
+  errorMessage.value = ''
 
-        // Если стрим активен, есть ключ и инициализирован плеер
-        if (stream.value.live && stream.value.streamKey && player.value) {
-          const hlsUrl = `http://localhost:8088/hls/${stream.value.streamKey}.m3u8`
-          player.value.src({ src: hlsUrl, type: 'application/x-mpegURL' })
-          player.value.play().catch(error => {
-            console.error('Ошибка автовоспроизведения:', error)
-          })
-        }
-      } catch (error) {
-        console.error('Ошибка при получении стрима:', error)
-        stream.value = null
-      }
+  try {
+    await streamStore.fetchStreamById(streamId.value)
+    
+    if (!streamStore.currentStream) {
+      errorMessage.value = 'Стрим не найден'
+      router.push('/')
     }
-
-    // Инкрементируем счетчик зрителей, когда пользователь заходит на страницу
-    const incrementViewerCount = async (id) => {
-      try {
-        await axios.post(`${apiUrl}/streams/${id}/viewers?delta=1`)
-      } catch (error) {
-        console.error('Ошибка при обновлении счетчика зрителей:', error)
-      }
-    }
-
-    // Декрементируем счетчик зрителей, когда пользователь покидает страницу
-    const decrementViewerCount = async (id) => {
-      try {
-        await axios.post(`${apiUrl}/streams/${id}/viewers?delta=-1`)
-      } catch (error) {
-        console.error('Ошибка при обновлении счетчика зрителей:', error)
-      }
-    }
-
-    // Модифицированная инициализация видеоплеера
-    const initVideoPlayer = () => {
-      // Убеждаемся, что player еще не инициализирован
-      if (player.value) {
-        return;
-      }
-
-      if (!videoPlayer.value) {
-        console.warn('Не удалось инициализировать видеоплеер: отсутствует элемент проигрывателя');
-        return;
-      }
-
-      // Используем либо ключ с сервера, либо ручной ввод
-      const streamKey = manualStreamKey.value || (stream.value && stream.value.streamKey);
-      if (!streamKey) {
-        console.warn('Не удалось инициализировать видеоплеер: отсутствует ключ стрима');
-        return;
-      }
-
-      // Добавляем /index.m3u8 к пути для более надежного соединения
-      const hlsUrl = `http://localhost:8088/hls/${streamKey}/index.m3u8`;
-      console.log('Инициализация плеера с URL:', hlsUrl);
-
-      const options = {
-        fluid: true,
-        responsive: true,
-        sources: [{
-          src: hlsUrl,
-          type: 'application/x-mpegURL'
-        }],
-        autoplay: true,
-        controls: true,
-        preload: 'auto',
-        liveui: true
-      };
-
-      player.value = videojs(videoPlayer.value, options, () => {
-        console.log('Плеер VideoJS инициализирован');
-        player.value.play().catch(error => {
-          console.error('Ошибка автовоспроизведения:', error);
-        });
-      });
-    };
-
-    // Завершение стрима
-    const endStream = async () => {
-      if (!isStreamer.value || !stream.value || !stream.value.live) {
-        return
-      }
-
-      isLoading.value = true
-      try {
-        await axios.post(`${apiUrl}/streams/${stream.value.id}/end`)
-        await fetchStream(stream.value.id)
-        alert('Стрим успешно завершен')
-
-        // Останавливаем плеер
-        if (player.value) {
-          player.value.pause()
-        }
-      } catch (error) {
-        console.error('Ошибка при завершении стрима:', error)
-        alert('Не удалось завершить стрим. Попробуйте еще раз.')
-      } finally {
-        isLoading.value = false
-      }
-    }
-
-    onMounted(async () => {
-      const streamId = route.params.id
-      await fetchStream(streamId)
-
-      if (!userStore.user) {
-        await userStore.fetchUser()
-      }
-
-      if (stream.value) {
-        await incrementViewerCount(streamId)
-
-        // Периодическое обновление информации о стриме
-        updateInterval.value = setInterval(async () => {
-          await fetchStream(streamId)
-        }, 30000) // Обновляем каждые 30 секунд
-
-        // Инициализируем видеоплеер, если стрим активен
-        if (stream.value.live) {
-          initVideoPlayer()
-        }
-      }
-    })
-
-    onUnmounted(async () => {
-      if (updateInterval.value) {
-        clearInterval(updateInterval.value)
-      }
-
-      if (stream.value) {
-        await decrementViewerCount(route.params.id)
-      }
-
-      // Освобождаем ресурсы плеера
-      if (player.value) {
-        player.value.dispose()
-        player.value = null
-      }
-    })
-
-    return {
-      stream,
-      isStreamer,
-      isLoading,
-      endStream,
-      videoPlayer,
-      manualStreamKey,
-      availableStreamKeys
-      // chatMessages,
-      // newMessage
-    }
+  } catch (error) {
+    console.error('Ошибка при загрузке стрима:', error)
+    errorMessage.value = 'Не удалось загрузить стрим'
+  } finally {
+    isLoading.value = false
   }
 }
+
+// Завершение стрима
+const endStream = async () => {
+  if (!confirm('Вы уверены, что хотите завершить стрим?')) return
+
+  isLoading.value = true
+  errorMessage.value = ''
+
+  try {
+    const result = await streamStore.endStream()
+
+    if (result) {
+      alert('Стрим успешно завершен')
+      await loadStream() // Обновляем данные стрима
+    } else {
+      errorMessage.value = streamStore.error || 'Не удалось завершить стрим'
+    }
+  } catch (error) {
+    console.error('Ошибка при завершении стрима:', error)
+    errorMessage.value = 'Произошла ошибка при завершении стрима'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Редактирование стрима
+const editStream = () => {
+  router.push('/streams/dashboard')
+}
+
+// Получение тегов
+const getTags = (stream) => {
+  if (!stream) return [];
+  
+  if (stream.tags && Array.isArray(stream.tags)) {
+    return stream.tags;
+  }
+  
+  return [];
+}
+
+// Форматирование даты
+const formatDate = (dateString) => {
+  if (!dateString) return 'Нет данных';
+  
+  // Проверяем, не является ли dateString объектом
+  if (typeof dateString === 'object' && dateString !== null) {
+    console.log('Date is an object:', dateString);
+    return 'Нет данных';
+  }
+  
+  try {
+    const date = new Date(dateString);
+    // Проверяем валидность даты
+    if (isNaN(date.getTime())) {
+      console.log('Invalid date from string:', dateString);
+      return 'Нет данных';
+    }
+    
+    return date.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Нет данных';
+  }
+}
+
+// Инициализация
+onMounted(async () => {
+  await loadStream()
+})
 </script>
 
 <template>
-  <v-container fluid class="pa-0">
-    <v-row no-gutters>
-      <v-col v-if="stream" cols="12">
-        <v-card>
-          <v-card-title class="d-flex align-center">
-            <div>
-              <span class="text-h5">{{ stream.title }}</span>
+  <v-container v-if="!isLoading && streamStore.currentStream">
+    <v-row>
+      <v-col cols="12">
+        <!-- Видео плеер -->
+        <div class="stream-player mb-4">
+          <div v-if="streamStore.currentStream.isLive" class="video-container">
+            <!-- Здесь будет встроен видео плеер (например, Hls.js или VideoJS) -->
+            <div class="video-placeholder d-flex align-center justify-center">
+              <div class="text-center">
+                <v-icon size="64" color="white">mdi-play-circle</v-icon>
+                <div class="text-h6 mt-2">Трансляция в прямом эфире</div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="video-container">
+            <div class="video-placeholder d-flex align-center justify-center bg-grey-darken-3">
+              <div class="text-center">
+                <v-icon size="64" color="white">mdi-television-off</v-icon>
+                <div class="text-h6 mt-2">Трансляция завершена</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Информация о стриме -->
+        <v-card variant="outlined" class="mb-4">
+          <v-card-title>
+            <div class="d-flex align-center">
+              {{ streamStore.currentStream.title }}
               <v-chip
-                v-if="stream.live"
+                v-if="streamStore.currentStream.isLive"
                 color="error"
                 size="small"
                 class="ml-2"
               >
-                LIVE
-              </v-chip>
-              <v-chip
-                v-else
-                color="grey"
-                size="small"
-                class="ml-2"
-              >
-                OFFLINE
+                <v-icon start size="x-small">mdi-access-point</v-icon>
+                В ЭФИРЕ
               </v-chip>
             </div>
-            <v-spacer></v-spacer>
-            <v-btn
-              v-if="isStreamer && stream.live"
-              color="error"
-              @click="endStream"
-              :loading="isLoading"
-              class="ml-2"
-            >
-              Завершить стрим
-            </v-btn>
-            <v-btn 
-              v-if="isStreamer && !stream.live"
-              color="success"
-              to="/create-stream"
-              class="ml-2"
-            >
-              Создать новый стрим
-            </v-btn>
           </v-card-title>
           
-          <v-card-item class="pa-0">
-            <div v-if="stream.live && (stream.streamKey || manualStreamKey)" class="video-container">
-              <video ref="videoPlayer" class="video-js vjs-fluid vjs-big-play-centered" controls autoplay></video>
-            </div>
-            <v-img
-              v-else
-              :src="stream.thumbnailUrl"
-              aspect-ratio="16/9"
-              cover
-            >
-              <template v-slot:placeholder>
-                <v-row class="fill-height ma-0" align="center" justify="center">
-                  <v-progress-circular indeterminate color="primary"></v-progress-circular>
-                </v-row>
-              </template>
-              <div class="stream-offline-overlay d-flex flex-column align-center justify-center">
-                <div class="text-h5 text-white">Стрим не активен</div>
-                <div class="text-body-1 text-white">Трансляция была завершена или еще не началась</div>
-                <div v-if="stream.streamKey" class="mt-4 text-body-2 text-white">Ключ стрима: {{ stream.streamKey }}</div>
+          <v-card-text>
+            <div class="d-flex align-center mb-4">
+              <v-avatar size="40" class="mr-2">
+                <v-img src="https://i.pravatar.cc/150?img=1"></v-img>
+              </v-avatar>
+              <div>
+                <div class="text-subtitle-1 font-weight-bold">Пользователь</div>
+                <div class="text-caption">{{ formatDate(streamStore.currentStream.startedAt) }}</div>
               </div>
-            </v-img>
-          </v-card-item>
-          
-          <v-card-subtitle>
-            <v-row align="center" no-gutters>
-              <v-col cols="auto">
-                <v-avatar size="32" class="mr-2">
-                  <v-img :src="stream.user.avatar" cover></v-img>
-                </v-avatar>
-                {{ stream.user.username }}
-              </v-col>
-              <v-col cols="auto" class="ml-4">
-                <v-icon start>mdi-eye</v-icon>
-                {{ stream.viewersCount }}
-              </v-col>
-              <v-col cols="auto" class="ml-4">
-                <v-icon start>mdi-tag</v-icon>
-                {{ stream.category ? stream.category.name : 'Без категории' }}
-              </v-col>
-            </v-row>
-          </v-card-subtitle>
-          
-          <v-card-text v-if="stream.description">
-            <v-divider class="mb-4"></v-divider>
-            <p>{{ stream.description }}</p>
-          </v-card-text>
-          
-          <v-card-text v-if="stream.startedAt">
-            <v-icon start>mdi-clock-outline</v-icon>
-            Начало: {{ new Date(stream.startedAt).toLocaleString() }}
-          </v-card-text>
-          
-        </v-card>
-      </v-col>
-      
-      <v-col v-else cols="12">
-        <v-alert type="error" class="mt-4">
-          Стрим не найден или недоступен
-        </v-alert>
-      </v-col>
-      
-      <!-- секция чата
-      <v-col cols="12" md="4">
-        <v-card height="calc(100vh - 120px)" class="d-flex flex-column">
-          <v-card-title class="d-flex align-center">
-            <span>Чат</span>
-            <v-spacer></v-spacer>
-            <v-btn icon="mdi-dots-vertical" variant="text"></v-btn>
-          </v-card-title>
-          
-          <v-card-text class="pa-0 overflow-y-auto flex-grow-1">
-            <v-list class="h-100">
-              <v-list-item
-                v-for="message in chatMessages"
-                :key="message.id"
-                :title="message.username"
-                :subtitle="message.text"
-                class="border-b"
+              
+              <v-spacer></v-spacer>
+              
+              <div class="d-flex align-center">
+                <v-icon color="red" class="mr-1">mdi-eye</v-icon>
+                <span class="text-body-2">{{ streamStore.currentStream.viewerCount }} зрителей</span>
+              </div>
+            </div>
+            
+            <p v-if="streamStore.currentStream.description" class="text-body-1 mb-4">
+              {{ streamStore.currentStream.description }}
+            </p>
+            <p v-else class="text-body-1 text-grey mb-4">
+              Описание отсутствует
+            </p>
+            
+            <div class="d-flex flex-wrap gap-1 mb-4">
+              <v-chip
+                v-for="tag in getTags(streamStore.currentStream)"
+                :key="tag"
+                size="small"
+                class="mr-1"
               >
-                <template v-slot:prepend>
-                  <v-avatar size="32" class="mr-2">
-                    <v-img :src="message.avatar" cover></v-img>
-                  </v-avatar>
-                </template>
-              </v-list-item>
-            </v-list>
+                {{ tag }}
+              </v-chip>
+            </div>
+            
+            <div v-if="isStreamOwner" class="d-flex gap-2">
+              <v-btn color="primary" @click="editStream">
+                <v-icon start>mdi-pencil</v-icon>
+                Редактировать
+              </v-btn>
+              <v-btn v-if="streamStore.currentStream.isLive" color="error" @click="endStream" :loading="isLoading">
+                <v-icon start>mdi-stop</v-icon>
+                Завершить стрим
+              </v-btn>
+            </div>
           </v-card-text>
-          
-          <v-card-actions class="pa-4 border-t">
-            <v-text-field
-              v-model="newMessage"
-              placeholder="Напишите сообщение..."
-              variant="outlined"
-              density="compact"
-              hide-details
-              class="mr-2"
-            ></v-text-field>
-            <v-btn color="primary" icon="mdi-send"></v-btn>
-          </v-card-actions>
+        </v-card>
+        
+        <!-- Рекомендуемые стримы -->
+        <v-card>
+          <v-card-title>Рекомендуемые стримы</v-card-title>
+          <v-card-text>
+            <div class="text-center my-4 text-grey">
+              <v-icon>mdi-television</v-icon>
+              <p>Рекомендации будут доступны в следующей версии</p>
+            </div>
+          </v-card-text>
         </v-card>
       </v-col>
-      -->
     </v-row>
+  </v-container>
+
+  <v-container v-else-if="isLoading">
+    <div class="d-flex justify-center align-center" style="height: 300px;">
+      <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+    </div>
+  </v-container>
+
+  <v-container v-else>
+    <v-alert type="error" variant="tonal" border="start">
+      {{ errorMessage || 'Стрим не найден' }}
+    </v-alert>
+    <div class="text-center mt-4">
+      <v-btn color="primary" to="/">На главную</v-btn>
+    </div>
   </v-container>
 </template>
 
 <style scoped>
 .video-container {
+  position: relative;
   width: 100%;
-  aspect-ratio: 16/9;
+  height: 0;
+  padding-bottom: 56.25%; /* 16:9 соотношение сторон */
   background-color: #000;
+  overflow: hidden;
+  border-radius: 8px;
 }
 
-.stream-offline-overlay {
+.video-placeholder {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: #1e1e1e;
+  color: white;
 }
 </style> 

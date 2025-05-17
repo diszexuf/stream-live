@@ -1,84 +1,143 @@
 <template>
   <v-container>
-    <v-row>
-      <v-col cols="12">
-        <v-card>
-          <v-card-item>
-            <v-card-title class="text-h4">Популярные стримы</v-card-title>
-          </v-card-item>
-          
-          <v-card-text>
-            <v-row>
-              <v-col v-for="stream in streams" :key="stream.id" cols="12" sm="6" md="4" lg="3">
-                <v-card @click="navigateToStream(stream.id)" hover>
-                  <v-img
-                    :src="stream.thumbnailUrl"
-                    aspect-ratio="16/9"
-                    cover
-                  >
-                    <template v-slot:placeholder>
-                      <v-row class="fill-height ma-0" align="center" justify="center">
-                        <v-progress-circular indeterminate color="primary"></v-progress-circular>
-                      </v-row>
-                    </template>
-                  </v-img>
-                  
-                  <v-card-title class="text-subtitle-1">{{ stream.title }}</v-card-title>
-                  <v-card-subtitle>
-                    <v-icon start size="small">mdi-eye</v-icon>
-                    {{ stream.viewersCount }} зрителей
-                  </v-card-subtitle>
-                </v-card>
-              </v-col>
-              
-              <v-col v-if="streams.length === 0" cols="12">
-                <v-alert type="info">
-                  Стримы не найдены. Пожалуйста, обновите страницу.
-                </v-alert>
-              </v-col>
-            </v-row>
-          </v-card-text>
-        </v-card>
+    <v-row class="mb-4">
+      <v-col cols="12" class="d-flex align-center">
+        <h1 class="text-h4">
+          <template v-if="searchQuery">
+            Результаты поиска: "{{ searchQuery }}"
+          </template>
+          <template v-else>
+            {{ showOnlyLive ? 'Активные стримы' : 'Все стримы' }}
+          </template>
+        </h1>
+        
+        <v-spacer></v-spacer>
+        
+        <v-btn-toggle v-if="!searchQuery" v-model="showOnlyLive" mandatory @change="toggleLiveStreams">
+          <v-btn :value="true" color="success">
+            <v-icon start>mdi-access-point</v-icon>
+            Активные
+          </v-btn>
+          <v-btn :value="false" color="primary">
+            <v-icon start>mdi-format-list-bulleted</v-icon>
+            Все
+          </v-btn>
+        </v-btn-toggle>
+        
+        <v-btn v-else color="primary" variant="text" @click="clearSearch">
+          <v-icon start>mdi-arrow-left</v-icon>
+          Назад к стримам
+        </v-btn>
       </v-col>
     </v-row>
+
+    <v-progress-linear v-if="isLoading" indeterminate color="primary" class="mb-4"></v-progress-linear>
+
+    <stream-list
+      :streams="displayedStreams"
+      :loading="isLoading"
+      :empty-message="getEmptyMessage()"
+      @stream-click="navigateToStream"
+    />
   </v-container>
 </template>
 
-<script>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import axios from 'axios'
+<script setup>
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useStreamStore } from '@/stores/stream'
+import StreamList from '@/components/stream/StreamList.vue'
 
-export default {
-  name: 'HomeView',
-  setup() {
-    const router = useRouter()
-    const streams = ref([])
-    const apiUrl = 'http://localhost:8080/api'
-    
-    const fetchStreams = async () => {
-      try {
-        const response = await axios.get(`${apiUrl}/streams`)
-        streams.value = response.data
-      } catch (error) {
-        console.error('Ошибка при получении стримов:', error)
-        streams.value = []
-        alert('Не удалось загрузить стримы. Пожалуйста, обновите страницу.')
-      }
+const router = useRouter()
+const route = useRoute()
+const streamStore = useStreamStore()
+
+const showOnlyLive = ref(true)
+const isLoading = ref(false)
+const searchResults = ref([])
+const searchQuery = ref('')
+
+watch(() => route.query.search, async (newQuery) => {
+  searchQuery.value = newQuery || ''
+  if (searchQuery.value) {
+    await performSearch()
+  }
+}, { immediate: true })
+
+const displayedStreams = computed(() => {
+  if (searchQuery.value) {
+    return searchResults.value
+  }
+  return showOnlyLive.value ? streamStore.liveStreams : streamStore.allStreams
+})
+
+// Загрузка стримов
+const loadStreams = async () => {
+  isLoading.value = true
+
+  try {
+    if (showOnlyLive.value) {
+      await streamStore.fetchLiveStreams()
+    } else {
+      await streamStore.fetchAllStreams()
     }
-    
-    const navigateToStream = (streamId) => {
-      router.push(`/stream/${streamId}`)
-    }
-    
-    onMounted(async () => {
-      await fetchStreams()
-    })
-    
-    return {
-      streams,
-      navigateToStream
-    }
+  } catch (error) {
+    console.error('Ошибка при загрузке стримов:', error)
+  } finally {
+    isLoading.value = false
   }
 }
-</script> 
+
+const performSearch = async () => {
+  if (!searchQuery.value) return
+  
+  isLoading.value = true
+  try {
+    searchResults.value = await streamStore.searchStreams(searchQuery.value)
+  } catch (error) {
+    console.error('Ошибка при поиске стримов:', error)
+    searchResults.value = []
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const clearSearch = () => {
+  router.replace({ path: '/' })
+  searchQuery.value = ''
+  searchResults.value = []
+}
+
+// Переключение между всеми и активными стримами
+const toggleLiveStreams = async () => {
+  await loadStreams()
+}
+
+const navigateToStream = (streamId) => {
+  router.push(`/stream/${streamId}`)
+}
+
+const getEmptyMessage = () => {
+  if (searchQuery.value) {
+    return `По запросу "${searchQuery.value}" ничего не найдено`
+  }
+  return showOnlyLive.value ? 'В данный момент нет активных стримов' : 'Стримы не найдены'
+}
+
+onMounted(async () => {
+  if (!searchQuery.value) {
+    await loadStreams()
+  }
+})
+</script>
+
+<style scoped>
+.stream-card {
+  transition: transform 0.2s;
+  cursor: pointer;
+}
+
+.stream-card:hover {
+  transform: translateY(-4px);
+}
+</style>
