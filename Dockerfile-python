@@ -1,11 +1,23 @@
-FROM python:3.11-slim
-
+# Этап 1: Сборка зависимостей
+FROM python:3.11-slim AS builder
 WORKDIR /app
+COPY requirements.txt .
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN pip install --user -r requirements.txt --index-url https://download.pytorch.org/whl/cpu
 
-COPY /censore_module/requirements.txt .
-
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
+# Этап 2: Финальный образ
+FROM python:3.11-slim
+WORKDIR /app
+COPY --from=builder /root/.local /root/.local
+ENV PATH=/root/.local/bin:$PATH
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+COPY main.py .
+COPY AdRecognitionModel.py .
+COPY SpeechRecognitionModel.py .
+COPY segment_processor.py .
+COPY audio_processor.py .
+COPY speech_recognizer.py .
+COPY ad_detector.py .
+COPY ./models /app/models
 
 CMD ["python", "main.py"]

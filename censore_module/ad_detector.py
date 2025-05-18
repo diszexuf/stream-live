@@ -26,7 +26,7 @@ def detect_ad(text: str, model) -> Tuple[bool, float]:
         if probabilities.size > 1:
             ad_probability = float(probabilities[0][1])
             is_ad = ad_probability > 0.8
-            logging.info(f"Текст: '{text}' | Вероятность рекламы: {ad_probability}")
+            logging.debug(f"Текст: '{text}' | Вероятность рекламы: {ad_probability}")
             return is_ad, ad_probability
         else:
             logging.error(f"Неверный формат вероятностей: {probabilities}")

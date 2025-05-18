@@ -29,7 +29,8 @@ def transcribe_audio(wav_path: str, model) -> List[Dict]:
                 final_result = json.loads(rec.FinalResult())
                 _process_result(final_result, transcriptions)
 
-        print("Транскрипции:", transcriptions)
+        # Убираем вывод в консоль
+        # print("Транскрипции:", transcriptions)
     except Exception as e:
         print(f"Ошибка при распознавании аудио: {str(e)}")
 

@@ -10,7 +10,7 @@ from ad_detector import detect_ad
 
 # Настройка логирования
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.ERROR,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('processing.log', encoding='utf-8'),
@@ -143,8 +143,8 @@ class SegmentProcessor:
         Обрабатывает сегменты медиа-контента.
         Возвращает True, если сегмент был обработан и сохранен.
         """
-        logging.info(f"\n{'=' * 50}")
-        logging.info(f"Обработка сегмента {segment_index}")
+        logging.debug(f"\n{'=' * 50}")
+        logging.debug(f"Обработка сегмента {segment_index}")
 
         try:
             # Извлекаем аудио текущего сегмента
@@ -175,7 +175,7 @@ class SegmentProcessor:
                     'fragments': current_fragments
                 }
 
-                logging.info(f"Сегмент {segment_index} обработан и сохранен в буфер")
+                logging.debug(f"Сегмент {segment_index} обработан и сохранен в буфер")
                 return False  # Сегмент не был сохранен
 
             # Извлекаем данные предыдущего сегмента из буфера
@@ -204,19 +204,19 @@ class SegmentProcessor:
             # Если в конце предыдущего сегмента есть часть рекламы, мьютим её
             final_prev_audio = prev_audio
             for start, end in prev_end_ad_regions:
-                logging.info(f"Мьютим фрагмент рекламы на стыке в сегменте {prev_index}: {start}-{end}")
+                logging.debug(f"Мьютим фрагмент рекламы на стыке в сегменте {prev_index}: {start}-{end}")
                 final_prev_audio = replace_audio_segment(final_prev_audio, start, end)
 
             # 4. Применяем изменения к текущему сегменту (N+1)
             processed_current_audio = current_audio
             # Мьютим начало сегмента, если оно часть рекламы на стыке
             for start, end in next_start_ad_regions:
-                logging.info(f"Мьютим фрагмент рекламы на стыке в сегменте {segment_index}: {start}-{end}")
+                logging.debug(f"Мьютим фрагмент рекламы на стыке в сегменте {segment_index}: {start}-{end}")
                 processed_current_audio = replace_audio_segment(processed_current_audio, start, end)
 
             # Мьютим рекламу внутри текущего сегмента
             for start, end in current_ad_regions:
-                logging.info(f"Мьютим рекламу внутри сегмента {segment_index}: {start}-{end}")
+                logging.debug(f"Мьютим рекламу внутри сегмента {segment_index}: {start}-{end}")
                 processed_current_audio = replace_audio_segment(processed_current_audio, start, end)
 
             # 5. Сохраняем обработанный предыдущий сегмент (N)
@@ -241,7 +241,7 @@ class SegmentProcessor:
             if os.path.exists(combined_audio_file):
                 os.remove(combined_audio_file)
 
-            logging.info(f"Сегмент {prev_index} обработан и сохранен: {prev_output}")
+            logging.debug(f"Сегмент {prev_index} обработан и сохранен: {prev_output}")
             return True
 
         except Exception as e:
@@ -258,4 +258,4 @@ class SegmentProcessor:
                 buf['audio'],
                 output_file
             )
-            logging.info(f"Финальный сегмент {buf['index']} обработан и сохранен")
+            logging.debug(f"Финальный сегмент {buf['index']} обработан и сохранен")
