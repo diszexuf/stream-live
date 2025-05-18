@@ -43,8 +43,8 @@ const handleFileUpload = (event) => {
   
   const reader = new FileReader()
   reader.onload = (e) => {
-    // Здесь можно добавить логику для загрузки файла на сервер
-    // Пока просто обновляем URL аватара локально
+    // добавить логику для загрузки файла на сервер
+    // пока обновляем URL аватара локально
     if (userStore.user) {
       userStore.user.avatarUrl = e.target.result
     }
@@ -52,12 +52,10 @@ const handleFileUpload = (event) => {
   reader.readAsDataURL(file)
 }
 
-// Сохранение профиля
 const saveProfile = async () => {
   isLoading.value = true
   errorMessage.value = ''
 
-  // Проверяем и обрабатываем поле bio
   const bioValue = typeof bioText.value === 'object' ? '' : (bioText.value || '')
 
   const payload = {
@@ -77,7 +75,6 @@ const saveProfile = async () => {
       console.log('ProfileView: Профиль успешно обновлен')
       alert('Профиль успешно обновлен')
       
-      // Обновляем локальное значение bio после успешного сохранения
       if (userStore.user) {
         userStore.user.bio = bioValue
         console.log('ProfileView: Локальное значение bio обновлено:', bioValue)
@@ -89,7 +86,6 @@ const saveProfile = async () => {
   } catch (error) {
     console.error('ProfileView: Ошибка при обновлении профиля:', error)
     
-    // Дополнительная информация об ошибке
     if (error.status) {
       console.error(`ProfileView: Код ошибки: ${error.status}, Сообщение: ${error.statusText || error.message}`)
       errorMessage.value = `Ошибка ${error.status}: ${error.statusText || error.message}`
@@ -102,27 +98,22 @@ const saveProfile = async () => {
   }
 }
 
-// Переключение видимости ключа стрима
 const toggleStreamKeyVisibility = () => {
   isStreamKeyVisible.value = !isStreamKeyVisible.value
 }
 
-// Сброс ключа стрима
 const resetStreamKey = async () => {
   if (!confirm('Вы уверены, что хотите сбросить ключ стрима? Текущий стрим будет прерван.')) return
 
   try {
     const newKey = await userStore.regenerateStreamKey()
     if (newKey) {
-      // Сначала обновляем ключ в пользовательских данных
       if (userStore.user) {
         userStore.user.streamKey = newKey
       }
       
-      // Затем делаем ключ видимым
       isStreamKeyVisible.value = true
       
-      // Используем nextTick для гарантии обновления DOM
       await nextTick()
     }
   } catch (error) {
@@ -131,7 +122,6 @@ const resetStreamKey = async () => {
   }
 }
 
-// Копирование ключа стрима
 const copyStreamKey = () => {
   if (!userStore.user || !userStore.user.streamKey) return
   
@@ -140,7 +130,6 @@ const copyStreamKey = () => {
       .catch(err => console.error('Ошибка копирования:', err))
 }
 
-// Загрузка данных пользователя
 const loadUserData = async () => {
   isUserLoading.value = true
   
@@ -150,7 +139,6 @@ const loadUserData = async () => {
       console.log('Загруженные данные пользователя:', userStore.user)
     }
     
-    // Инициализация bioText
     if (userStore.user) {
       bioText.value = typeof userStore.user.bio === 'object' ? '' : (userStore.user.bio || '')
     }
@@ -201,7 +189,6 @@ onMounted(async () => {
 
       <v-card-text>
         <v-window v-model="activeTab">
-          <!-- Информация -->
           <v-window-item value="info">
             <v-form @submit.prevent="saveProfile">
               <v-text-field

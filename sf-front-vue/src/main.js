@@ -19,15 +19,15 @@ const vuetify = createVuetify({
             myLightTheme: {
                 dark: false,
                 colors: {
-                    background: '#f5f5f5', // Мягкий серый-белый
-                    surface: '#fafafa',   // Светло-серый
-                    primary: '#2196F3',   // Более тёплый синий
-                    secondary: '#757575',  // Средний серый
+                    background: '#f5f5f5',
+                    surface: '#fafafa',
+                    primary: '#2196F3',
+                    secondary: '#757575',
                     info: '#2196F3',
                     success: '#4CAF50',
                     warning: '#FB8C00',
                     error: '#FF5252',
-                    onSurface: '#333333'   // Текст на поверхности
+                    onSurface: '#333333'
                 },
                 variables: {
                     'border-color': '#ccc',
@@ -46,7 +46,6 @@ const vuetify = createVuetify({
 const pinia = createPinia()
 const app = createApp(App)
 
-// Инициализация приложения
 app.use(pinia)
 app.use(router)
 app.use(vuetify)

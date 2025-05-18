@@ -1,21 +1,17 @@
 import {defineStore} from 'pinia'
 import {ref} from 'vue'
 
-// Импортируем самописные клиенты и DTO
 import { authClient, userClient, setAuthToken, UserAuthRequest, UserRegisterRequest, UserUpdateRequest } from '@/api/manual';
 
 export const useUserStore = defineStore('user', () => {
-    // Стор
     const token = ref(localStorage.getItem('token') || null)
     const isAuthenticated = ref(!!token.value)
     const user = ref(null)
 
-    // Инициализация токена авторизации
     if (token.value) {
         setAuthToken(token.value);
     }
 
-    // Авторизация
     const login = async (username, password) => {
         try {
             const request = new UserAuthRequest(username, password);
@@ -34,7 +30,6 @@ export const useUserStore = defineStore('user', () => {
         }
     }
 
-    // Регистрация
     const register = async (username, email, password) => {
         try {
             const request = new UserRegisterRequest(username, email, password);
@@ -53,16 +48,13 @@ export const useUserStore = defineStore('user', () => {
         }
     }
 
-    // Получение текущего пользователя
     const fetchCurrentUser = async () => {
         try {
-            // Убедимся, что токен установлен перед запросом
             if (token.value) {
                 setAuthToken(token.value);
             }
             
             const userResponse = await userClient.getCurrentUserProfile();
-            // Преобразуем UserResponse в обычный объект
             user.value = {
                 id: userResponse.id,
                 username: userResponse.username || '',
@@ -73,7 +65,6 @@ export const useUserStore = defineStore('user', () => {
                 streamKey: userResponse.streamKey || ''
             };
             
-            // Если ключ стрима не получен, запрашиваем его отдельно
             if (!user.value.streamKey) {
                 await fetchStreamKey();
             }
@@ -84,7 +75,6 @@ export const useUserStore = defineStore('user', () => {
         }
     }
 
-    // Получение ключа стрима
     const fetchStreamKey = async () => {
         if (!user.value) return;
         
@@ -98,14 +88,12 @@ export const useUserStore = defineStore('user', () => {
         }
     }
 
-    // Обновление профиля
     const updateCurrentUser = async (updateData) => {
         if (!user.value) throw new Error('Пользователь не загружен');
         console.log('updateCurrentUser: Начало обновления профиля');
         console.log('Данные для обновления:', updateData);
 
         try {
-            // Убедимся, что токен установлен перед запросом
             if (token.value) {
                 setAuthToken(token.value);
                 console.log('updateCurrentUser: Токен авторизации установлен');
@@ -121,54 +109,45 @@ export const useUserStore = defineStore('user', () => {
                 await userClient.updateUser(dto);
                 console.log('updateCurrentUser: Запрос на обновление профиля выполнен успешно');
                 
-                // Обновляем локальные поля сразу, чтобы пользователь видел изменения
                 console.log('updateCurrentUser: Обновление локальных полей');
                 if (updateData.email) user.value.email = updateData.email;
                 if (updateData.avatarUrl) user.value.avatarUrl = updateData.avatarUrl;
                 if (updateData.bio !== undefined) user.value.bio = updateData.bio;
                 
-                // После успешного обновления получаем актуальные данные пользователя
                 try {
                     console.log('updateCurrentUser: Получение актуальных данных пользователя');
                     await fetchCurrentUser();
                     console.log('updateCurrentUser: Актуальные данные пользователя получены');
                 } catch (fetchError) {
                     console.error('updateCurrentUser: Ошибка при получении актуальных данных:', fetchError);
-                    // Не перебрасываем эту ошибку, так как основная операция уже выполнена успешно
-                    // и локальные данные уже обновлены
                 }
                 
                 console.log('updateCurrentUser: Обновление профиля завершено успешно');
                 return true;
             } catch (updateError) {
-                // Проверяем, не связана ли ошибка с пустым ответом JSON
-                if (updateError instanceof SyntaxError && 
+                if (updateError instanceof SyntaxError &&
                     updateError.message.includes('Unexpected end of JSON input')) {
                     
                     console.log('updateCurrentUser: Получен пустой ответ от сервера, но это нормально');
                     
-                    // Обновляем локальные поля, так как запрос скорее всего выполнился успешно
                     if (updateData.email) user.value.email = updateData.email;
                     if (updateData.avatarUrl) user.value.avatarUrl = updateData.avatarUrl;
                     if (updateData.bio !== undefined) user.value.bio = updateData.bio;
                     
-                    // Пытаемся получить актуальные данные
                     try {
                         await fetchCurrentUser();
                     } catch (fetchError) {
                         console.error('updateCurrentUser: Ошибка при получении актуальных данных после пустого ответа:', fetchError);
-                        // Игнорируем эту ошибку
                     }
                     
-                    return true; // Считаем операцию успешной
+                    return true;
                 }
                 
                 console.error('updateCurrentUser: Ошибка при вызове userClient.updateUser:', updateError);
-                throw updateError; // Перебрасываем ошибку дальше
+                throw updateError;
             }
         } catch (error) {
             console.error('updateCurrentUser: Критическая ошибка при обновлении профиля:', error);
-            // Добавляем больше информации об ошибке
             if (error.status) {
                 console.error(`Код ошибки: ${error.status}, Сообщение: ${error.statusText || error.message}`);
             }
@@ -190,9 +169,7 @@ export const useUserStore = defineStore('user', () => {
         }
     }
 
-    // Выход из аккаунта
     const logout = () => {
-        // Импортируем функцию setAuthToken из API и очищаем токен
         try {
             const { setAuthToken } = require('@/api/manual');
             setAuthToken(null);
@@ -207,13 +184,11 @@ export const useUserStore = defineStore('user', () => {
         localStorage.removeItem('token');
     }
 
-    // Проверка аутентификации при старте
     const checkAuth = async () => {
         isAuthenticated.value = !!token.value;
         if (isAuthenticated.value && !user.value) {
             try {
                 if (token.value) {
-                    // Импортируем функцию setAuthToken из API и устанавливаем токен
                     try {
                         const { setAuthToken } = require('@/api/manual');
                         setAuthToken(token.value);
@@ -230,7 +205,6 @@ export const useUserStore = defineStore('user', () => {
         }
     }
 
-    // Установка токена
     const setToken = (newToken) => {
         if (!newToken) {
             console.error('setToken: Попытка установить пустой токен');
@@ -241,7 +215,6 @@ export const useUserStore = defineStore('user', () => {
         isAuthenticated.value = true;
         localStorage.setItem('token', newToken);
         
-        // Импортируем функцию setAuthToken из API и устанавливаем токен
         try {
             const { setAuthToken } = require('@/api/manual');
             setAuthToken(newToken);

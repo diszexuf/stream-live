@@ -1,3 +1,16 @@
+<script setup>
+import { computed } from 'vue'
+
+const links = [
+  { text: 'О нас', href: '#' },
+  { text: 'Правила', href: '#' },
+  { text: 'Конфиденциальность', href: '#' },
+  { text: 'Поддержка', href: '#' }
+]
+
+const currentYear = computed(() => new Date().getFullYear())
+</script>
+
 <template>
   <v-footer class="footer">
     <div class="d-flex flex-column align-center w-100">
@@ -19,19 +32,6 @@
     </div>
   </v-footer>
 </template>
-
-<script setup>
-import { computed } from 'vue'
-
-const links = [
-  { text: 'О нас', href: '#' },
-  { text: 'Правила', href: '#' },
-  { text: 'Конфиденциальность', href: '#' },
-  { text: 'Поддержка', href: '#' }
-]
-
-const currentYear = computed(() => new Date().getFullYear())
-</script>
 
 <style scoped>
 .footer {

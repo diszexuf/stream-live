@@ -64,38 +64,31 @@ export default class UserClient {
         const errorData = await response.json();
         Object.assign(error, errorData);
       } catch (e) {
-        // Игнорируем ошибку парсинга JSON
       }
       
       throw error;
     }
 
-    // Специальная обработка для PUT запросов на обновление профиля
     if (response.url.includes('/users/me') && response.type === 'basic' && response.method === 'PUT') {
       console.log('Обнаружен PUT запрос на обновление профиля, возвращаем null');
       return null;
     }
 
-    // Для ответов без тела (например, 204 No Content)
     if (response.status === 204) {
       return null;
     }
 
-    // Проверяем заголовок Content-Length
     const contentLength = response.headers.get('content-length');
     if (contentLength === '0') {
       return null;
     }
 
-    // Проверяем, есть ли контент в ответе
     const contentType = response.headers.get('content-type');
     
-    // Если контент-тип отсутствует, возвращаем null
     if (!contentType) {
       return null;
     }
     
-    // Если контент-тип не JSON, возвращаем текст или null
     if (!contentType.includes('application/json')) {
       try {
         return await response.text();
@@ -107,7 +100,6 @@ export default class UserClient {
     try {
       const text = await response.text();
       
-      // Если тело ответа пустое, возвращаем null
       if (!text || text.trim() === '') {
         return null;
       }
@@ -161,13 +153,12 @@ export default class UserClient {
     } catch (error) {
       console.error('UserClient.updateUser: Ошибка при обновлении профиля:', error);
       
-      // Если ошибка связана с пустым ответом JSON, это не критично для PUT запроса
       if (error instanceof SyntaxError && error.message.includes('Unexpected end of JSON input')) {
         console.log('UserClient.updateUser: Получен пустой ответ, но это нормально для PUT запроса');
-        return; // Просто возвращаемся без ошибки
+        return;
       }
       
-      throw error; // Перебрасываем другие ошибки дальше для обработки в store
+      throw error;
     }
   }
 

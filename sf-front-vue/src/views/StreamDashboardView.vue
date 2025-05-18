@@ -8,7 +8,6 @@ const router = useRouter()
 const streamStore = useStreamStore()
 const userStore = useUserStore()
 
-// Состояние формы
 const formData = ref({
   title: '',
   description: '',
@@ -22,12 +21,10 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 
-// Вычисляемые свойства
 const isAuthenticated = computed(() => userStore.isAuthenticated)
 const hasActiveStream = computed(() => streamStore.hasActiveStream)
 const activeStream = computed(() => streamStore.activeStream)
 
-// Добавление тега
 const addTag = () => {
   if (newTag.value && !formData.value.tags.includes(newTag.value)) {
     formData.value.tags.push(newTag.value)
@@ -35,12 +32,10 @@ const addTag = () => {
   }
 }
 
-// Удаление тега
 const removeTag = (tag) => {
   formData.value.tags = formData.value.tags.filter(t => t !== tag)
 }
 
-// Создание нового стрима
 const createStream = async () => {
   if (!formData.value.title) {
     errorMessage.value = 'Название стрима обязательно'
@@ -74,7 +69,6 @@ const createStream = async () => {
   }
 }
 
-// Обновление стрима
 const updateStream = async () => {
   if (!activeStream.value || !formData.value.title) {
     errorMessage.value = 'Название стрима обязательно'
@@ -106,7 +100,6 @@ const updateStream = async () => {
   }
 }
 
-// Завершение стрима
 const endCurrentStream = async () => {
   if (!confirm('Вы уверены, что хотите завершить стрим?')) return
 
@@ -130,7 +123,6 @@ const endCurrentStream = async () => {
   }
 }
 
-// Редактирование стрима
 const editStream = (stream) => {
   formData.value = {
     title: stream.title || '',
@@ -141,7 +133,6 @@ const editStream = (stream) => {
   activeTab.value = 'edit'
 }
 
-// Сброс формы
 const resetForm = () => {
   formData.value = {
     title: '',
@@ -151,7 +142,6 @@ const resetForm = () => {
   }
 }
 
-// Загрузка стримов пользователя
 const loadUserStreams = async () => {
   if (!isAuthenticated.value) {
     router.push('/login')
@@ -171,7 +161,6 @@ const loadUserStreams = async () => {
   }
 }
 
-// Инициализация
 onMounted(async () => {
   if (!isAuthenticated.value) {
     router.push('/login')
@@ -212,7 +201,6 @@ onMounted(async () => {
     </v-alert>
 
     <v-window v-model="activeTab">
-      <!-- Список стримов -->
       <v-window-item value="streams">
         <v-card v-if="hasActiveStream" color="success" variant="outlined" class="mb-4">
           <v-card-title>Активный стрим</v-card-title>
@@ -284,7 +272,6 @@ onMounted(async () => {
         </v-card>
       </v-window-item>
 
-      <!-- Создание стрима -->
       <v-window-item value="create">
         <v-card variant="outlined">
           <v-card-title>Создание нового стрима</v-card-title>
@@ -349,7 +336,6 @@ onMounted(async () => {
         </v-card>
       </v-window-item>
 
-      <!-- Редактирование стрима -->
       <v-window-item value="edit">
         <v-card variant="outlined">
           <v-card-title>Редактирование стрима</v-card-title>

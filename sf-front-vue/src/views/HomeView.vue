@@ -26,7 +26,6 @@ const displayedStreams = computed(() => {
   return streamStore.liveStreams
 })
 
-// Загрузка стримов
 const loadStreams = async () => {
   isLoading.value = true
 

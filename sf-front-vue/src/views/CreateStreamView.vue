@@ -19,13 +19,11 @@ const startStream = async () => {
 
   isLoading.value = true
   try {
-    // Проверяем авторизацию
     if (!userStore.isAuthenticated || !userStore.token) {
       console.error('Пользователь не авторизован')
       throw new Error('Необходимо авторизоваться')
     }
 
-    // Создаем объект с данными стрима
     const streamData = {
       title: streamTitle.value,
       description: streamDescription.value
@@ -33,23 +31,19 @@ const startStream = async () => {
 
     console.log('Создание стрима с данными:', streamData)
 
-    // Используем метод createStream из хранилища стримов
     const result = await streamStore.createStream(streamData)
     
     if (result) {
-      // Получаем ID нового стрима
       await streamStore.fetchCurrentUserStreams()
       
       const userStreams = streamStore.currentUserStreams
       if (userStreams && userStreams.length > 0) {
-        // Находим последний созданный стрим
         const newStream = userStreams[userStreams.length - 1]
         console.log('Стрим успешно создан:', newStream)
         
         if (newStream && newStream.id) {
           console.log(`Переход на страницу стрима с ID: ${newStream.id}`)
           
-          // Делаем небольшую задержку перед переходом, чтобы бэкенд успел обработать запрос
           setTimeout(async () => {
             try {
               await router.push(`/stream/${newStream.id}`)

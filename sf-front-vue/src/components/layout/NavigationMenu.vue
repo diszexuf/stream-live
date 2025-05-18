@@ -1,3 +1,14 @@
+<script setup>
+defineProps({
+  isAuthenticated: {
+    type: Boolean,
+    required: true
+  }
+})
+
+defineEmits(['logout'])
+</script>
+
 <template>
   <div class="d-flex align-center">
     <v-btn to="/" class="mx-2">Главная</v-btn>
@@ -41,16 +52,6 @@
   </div>
 </template>
 
-<script setup>
-defineProps({
-  isAuthenticated: {
-    type: Boolean,
-    required: true
-  }
-})
-
-defineEmits(['logout'])
-</script>
 <style scoped>
 
 </style>

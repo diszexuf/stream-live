@@ -3,7 +3,6 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStreamStore } from '@/stores/stream'
 import { useUserStore } from '@/stores/user'
-// Импортируем VideoJS
 import videojs from 'video.js'
 import 'video.js/dist/video-js.css'
 
@@ -17,32 +16,24 @@ const isLoading = ref(true)
 const errorMessage = ref('')
 const player = ref(null)
 
-// Вычисляемые свойства
 const isAuthenticated = computed(() => userStore.isAuthenticated)
 const isStreamOwner = computed(() => {
   if (!userStore.user || !streamStore.currentStream) return false
   return streamStore.currentStream.userId === userStore.user.id
 })
 
-// Состояние для диалогового окна с инструкциями
 const showObsInstructions = ref(false)
 
-// Состояние для отображения streamKey
 const isStreamKeyVisible = ref(false)
 
-// Получение URL HLS потока
 const getHlsUrl = (stream) => {
   if (!stream || !stream.streamKey) return '';
   
-  // URL HLS потока на основе streamKey
-  // Используем IP вместо localhost для лучшей совместимости с Docker
-  // Убираем расширение .m3u8, так как NGINX-RTMP может автоматически добавлять его
   const url = `http://127.0.0.1:8088/hls/${stream.streamKey}/index.m3u8`;
   console.log('HLS URL:', url);
   return url;
 }
 
-// Обновление источника видео
 const updateVideoSource = (stream) => {
   if (!player.value || !stream || !stream.streamKey) return
   
@@ -60,21 +51,18 @@ const updateVideoSource = (stream) => {
   })
 }
 
-// Инициализация VideoJS плеера
 const initPlayer = () => {
   if (!streamStore.currentStream || !streamStore.currentStream.isLive) {
     console.log('Не инициализируем плеер: стрим не активен или не загружен', streamStore.currentStream);
     return;
   }
   
-  // Находим элемент video
   const videoElement = document.getElementById('stream-video')
   if (!videoElement) {
     console.error('Элемент video не найден');
     return;
   }
   
-  // URL для HLS потока
   const hlsUrl = getHlsUrl(streamStore.currentStream);
   console.log('Инициализация плеера с URL:', hlsUrl);
   
@@ -95,16 +83,13 @@ const initPlayer = () => {
   
   console.log('Опции плеера:', options);
   
-  // Создаем экземпляр плеера
   player.value = videojs(videoElement, options, function onPlayerReady() {
     console.log('Плеер готов к использованию', this)
     
-    // Обработка ошибок
     this.on('error', function() {
       const error = this.error();
       console.error('Ошибка воспроизведения видео:', error);
       
-      // Пытаемся перезагрузить плеер при ошибке
       if (error && error.code) {
         console.log('Попытка перезагрузить плеер через 3 секунды...');
         setTimeout(() => {
@@ -114,19 +99,16 @@ const initPlayer = () => {
       }
     })
     
-    // Обработка начала воспроизведения
     this.on('playing', function() {
       console.log('Воспроизведение началось')
     })
     
-    // Обработка буферизации
     this.on('waiting', function() {
       console.log('Буферизация...')
     })
   })
 }
 
-// Уничтожение плеера при размонтировании компонента
 const destroyPlayer = () => {
   if (player.value) {
     player.value.dispose()
@@ -134,7 +116,6 @@ const destroyPlayer = () => {
   }
 }
 
-// Загрузка данных стрима
 const loadStream = async () => {
   if (!streamId.value) {
     errorMessage.value = 'ID стрима не указан'
@@ -148,13 +129,10 @@ const loadStream = async () => {
   try {
     console.log(`Загрузка стрима с ID: ${streamId.value}`)
     
-    // Проверяем, авторизован ли пользователь
     if (userStore.isAuthenticated) {
       console.log('Пользователь авторизован, токен:', userStore.token ? 'установлен' : 'не установлен')
       
-      // Если токен есть, но не установлен в клиенте, устанавливаем его
       if (userStore.token) {
-        // Импортируем функцию setAuthToken из API
         const { setAuthToken } = await import('@/api/manual')
         setAuthToken(userStore.token)
       }
@@ -162,7 +140,6 @@ const loadStream = async () => {
       console.log('Пользователь не авторизован')
     }
     
-    // Загружаем стрим
     await streamStore.fetchStreamById(streamId.value)
     
     if (!streamStore.currentStream) {
@@ -172,7 +149,6 @@ const loadStream = async () => {
       console.log('Стрим успешно загружен:', streamStore.currentStream)
       console.log('Stream key:', streamStore.currentStream.streamKey)
       
-      // Инициализируем плеер после загрузки данных стрима
       setTimeout(() => {
         initPlayer()
       }, 100)
@@ -185,7 +161,6 @@ const loadStream = async () => {
   }
 }
 
-// Завершение стрима
 const endStream = async () => {
   if (!confirm('Вы уверены, что хотите завершить стрим?')) return
 
@@ -196,19 +171,17 @@ const endStream = async () => {
   errorMessage.value = ''
 
   try {
-    // Убедимся, что токен авторизации установлен
     if (userStore.token) {
       const { setAuthToken } = await import('@/api/manual')
       setAuthToken(userStore.token)
     }
     
-    // Завершаем стрим
     const result = await streamStore.endStream()
     console.log('StreamView.endStream: Результат завершения стрима:', result);
 
     if (result) {
       alert('Стрим успешно завершен')
-      await loadStream() // Обновляем данные стрима
+      await loadStream()
     } else {
       errorMessage.value = streamStore.error || 'Не удалось завершить стрим'
       console.error('StreamView.endStream: Ошибка при завершении стрима:', streamStore.error);
@@ -221,17 +194,13 @@ const endStream = async () => {
   }
 }
 
-// Редактирование стрима
 const editStream = () => {
   if (streamStore.currentStream && streamStore.currentStream.id) {
-    // Сначала устанавливаем текущий стрим как активный в хранилище
     streamStore.setActiveStream(streamStore.currentStream);
-    // Затем переходим на страницу управления стримами
     router.push('/streams/dashboard');
   }
 }
 
-// Получение тегов
 const getTags = (stream) => {
   if (!stream) return [];
   
@@ -242,19 +211,16 @@ const getTags = (stream) => {
   return [];
 }
 
-// Форматирование даты
 const formatDate = (dateString) => {
   if (!dateString) return 'Нет данных';
   
-  // Проверяем, не является ли dateString объектом
-  if (typeof dateString === 'object' && dateString !== null) {
+  if (typeof dateString === 'object') {
     console.log('Date is an object:', dateString);
     return 'Нет данных';
   }
   
   try {
     const date = new Date(dateString);
-    // Проверяем валидность даты
     if (isNaN(date.getTime())) {
       console.log('Invalid date from string:', dateString);
       return 'Нет данных';
@@ -273,7 +239,6 @@ const formatDate = (dateString) => {
   }
 }
 
-// Копирование ключа стрима
 const copyStreamKey = () => {
   if (!streamStore.currentStream || !streamStore.currentStream.streamKey) return
   
@@ -286,17 +251,14 @@ const copyStreamKey = () => {
     })
 }
 
-// Переключение видимости ключа стрима
 const toggleStreamKeyVisibility = () => {
   isStreamKeyVisible.value = !isStreamKeyVisible.value
 }
 
-// Получение маскированного значения ключа стрима
 const getMaskedStreamKey = (key) => {
   if (!key) return ''
   if (isStreamKeyVisible.value) return key
   
-  // Показываем только первые 4 и последние 4 символа
   const visiblePart = 4
   if (key.length <= visiblePart * 2) {
     return '*'.repeat(key.length)
@@ -309,7 +271,6 @@ const getMaskedStreamKey = (key) => {
   return `${start}${masked}${end}`
 }
 
-// Наблюдение за изменением ID стрима
 watch(streamId, (newStreamId, oldStreamId) => {
   if (newStreamId !== oldStreamId) {
     console.log(`ID стрима изменился с ${oldStreamId} на ${newStreamId}`)
@@ -318,12 +279,10 @@ watch(streamId, (newStreamId, oldStreamId) => {
   }
 }, { immediate: true })
 
-// Инициализация
 onMounted(async () => {
   await loadStream()
 })
 
-// Очистка при размонтировании компонента
 onUnmounted(() => {
   destroyPlayer()
 })
@@ -331,7 +290,7 @@ onUnmounted(() => {
 
 <template>
   <v-container>
-    <!-- Отображение загрузки -->
+
     <v-row v-if="isLoading">
       <v-col cols="12" class="text-center">
         <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
@@ -339,7 +298,6 @@ onUnmounted(() => {
       </v-col>
     </v-row>
 
-    <!-- Отображение ошибки -->
     <v-row v-else-if="errorMessage">
       <v-col cols="12" md="8" offset-md="2">
         <v-alert type="error" variant="tonal" class="mb-4">
@@ -353,14 +311,11 @@ onUnmounted(() => {
       </v-col>
     </v-row>
 
-    <!-- Отображение стрима -->
     <template v-else-if="!isLoading && streamStore.currentStream">
       <v-row>
         <v-col cols="12" md="10" offset-md="1">
-          <!-- Видео плеер -->
           <div class="stream-player mb-4">
             <div v-if="streamStore.currentStream.isLive" class="video-container">
-              <!-- VideoJS плеер -->
               <video
                 id="stream-video"
                 class="video-js vjs-default-skin vjs-big-play-centered"
@@ -386,7 +341,6 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Информация о стриме -->
           <v-card variant="outlined" class="mb-4">
             <v-card-title>
               <div class="d-flex align-center">
@@ -450,7 +404,6 @@ onUnmounted(() => {
                 </v-btn>
               </div>
               
-              <!-- Информация о ключе стрима (только для владельца) -->
               <div v-if="isStreamOwner && streamStore.currentStream.streamKey" class="mt-4 pt-4 border-top">
                 <div class="d-flex align-center mb-2">
                   <h3 class="text-subtitle-1 font-weight-bold mr-2">Ключ стрима (RTMP)</h3>
@@ -508,7 +461,6 @@ onUnmounted(() => {
                   Инструкция по настройке OBS
                 </v-btn>
                 
-                <!-- Диалоговое окно с инструкциями -->
                 <v-dialog v-model="showObsInstructions" max-width="600px">
                   <v-card>
                     <v-card-title class="text-h5">
@@ -551,7 +503,6 @@ onUnmounted(() => {
             </v-card-text>
           </v-card>
           
-          <!-- Рекомендуемые стримы -->
           <v-card>
             <v-card-title>Рекомендуемые стримы</v-card-title>
             <v-card-text>
@@ -572,13 +523,12 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   height: 0;
-  padding-bottom: 56.25%; /* Стандартное соотношение сторон 16:9 */
+  padding-bottom: 56.25%; /* соотношение сторон 16:9 */
   background-color: #000;
   overflow: hidden;
   border-radius: 8px;
 }
 
-/* Стили для VideoJS */
 .video-container .video-js {
   position: absolute !important;
   top: 0;
@@ -587,7 +537,6 @@ onUnmounted(() => {
   height: 100% !important;
 }
 
-/* Убедимся, что все элементы внутри плеера также занимают всю доступную высоту */
 .video-container .vjs-tech {
   width: 100%;
   height: 100%;

@@ -43,16 +43,13 @@ export default class AuthClient {
         const errorData = await response.json();
         Object.assign(error, errorData);
       } catch (e) {
-        // Игнорируем ошибку парсинга JSON
       }
       
       throw error;
     }
 
-    // Проверяем, есть ли контент в ответе
     const contentType = response.headers.get('content-type');
     
-    // Если контент-тип отсутствует или не JSON, выбрасываем ошибку
     if (!contentType || !contentType.includes('application/json')) {
       throw new Error('Неверный формат ответа от сервера');
     }
@@ -60,7 +57,6 @@ export default class AuthClient {
     try {
       const text = await response.text();
       
-      // Если тело ответа пустое, выбрасываем ошибку
       if (!text || text.trim() === '') {
         throw new Error('Пустой ответ от сервера');
       }

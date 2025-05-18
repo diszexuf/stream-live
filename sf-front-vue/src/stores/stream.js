@@ -4,7 +4,6 @@ import { streamClient, StreamRequest } from '@/api/manual';
 import { useUserStore } from './user';
 
 export const useStreamStore = defineStore('stream', () => {
-  // Стор пользователя для доступа к данным текущего пользователя
   const userStore = useUserStore();
   
   // Состояние
@@ -23,10 +22,8 @@ export const useStreamStore = defineStore('stream', () => {
   const enrichStream = (stream) => {
     if (!stream) return null;
     
-    // Создаем копию стрима, чтобы избежать проблем с реактивностью
     const enrichedStream = { ...stream };
     
-    // Проверяем поля, которые могут быть объектами
     if (enrichedStream.tags && typeof enrichedStream.tags === 'object' && !Array.isArray(enrichedStream.tags)) {
       enrichedStream.tags = [];
     } else if (Array.isArray(enrichedStream.tags)) {
@@ -35,7 +32,6 @@ export const useStreamStore = defineStore('stream', () => {
       enrichedStream.tags = [];
     }
     
-    // Добавляем методы для форматирования времени и длительности
     enrichedStream.getFormattedStartTime = function() {
       if (!this.startedAt) return 'Нет данных';
       try {
@@ -62,7 +58,6 @@ export const useStreamStore = defineStore('stream', () => {
     return enrichedStream;
   };
   
-  // Вычисляемые свойства
   const hasActiveStream = computed(() => {
     return currentUserStreams.value.some(stream => stream.isLive);
   });
@@ -70,9 +65,7 @@ export const useStreamStore = defineStore('stream', () => {
   const activeStream = computed(() => {
     return currentUserStreams.value.find(stream => stream.isLive) || null;
   });
-  
-  // Действия
-  
+
   /**
    * Загружает все стримы
    */
@@ -83,7 +76,6 @@ export const useStreamStore = defineStore('stream', () => {
     try {
       const streams = await streamClient.getAllStreams();
       
-      // Преобразуем объекты в обычные JS объекты и обогащаем их
       allStreams.value = streams.map(stream => enrichStream(stream));
     } catch (err) {
       console.error('Ошибка при загрузке стримов:', err);
@@ -103,7 +95,6 @@ export const useStreamStore = defineStore('stream', () => {
     try {
       const streams = await streamClient.getLiveStreams();
       
-      // Преобразуем объекты в обычные JS объекты и обогащаем их
       liveStreams.value = streams.map(stream => enrichStream(stream));
     } catch (err) {
       console.error('Ошибка при загрузке активных стримов:', err);
@@ -191,7 +182,6 @@ export const useStreamStore = defineStore('stream', () => {
     try {
       console.log('createStream: Создание нового стрима', streamData);
       
-      // Проверяем наличие токена авторизации
       if (!userStore.token) {
         console.warn('createStream: Токен авторизации отсутствует');
         await userStore.checkAuth();
@@ -207,7 +197,6 @@ export const useStreamStore = defineStore('stream', () => {
       const newStream = await streamClient.createStream(request);
       console.log('createStream: Стрим успешно создан', newStream);
       
-      // Добавляем новый стрим в список стримов пользователя
       currentUserStreams.value.push(enrichStream(newStream));
       
       return true;
@@ -247,13 +236,11 @@ export const useStreamStore = defineStore('stream', () => {
       const updatedStream = await streamClient.updateStream(request);
       const enrichedStream = enrichStream(updatedStream);
       
-      // Обновляем стрим в списке стримов пользователя
       const index = currentUserStreams.value.findIndex(s => s.id === updatedStream.id);
       if (index !== -1) {
         currentUserStreams.value[index] = enrichedStream;
       }
       
-      // Обновляем текущий стрим, если он открыт
       if (currentStream.value && currentStream.value.id === updatedStream.id) {
         currentStream.value = enrichedStream;
       }
@@ -285,7 +272,6 @@ export const useStreamStore = defineStore('stream', () => {
     try {
       console.log('endStream: Завершение активного стрима');
       
-      // Проверяем наличие токена авторизации
       if (!userStore.token) {
         console.warn('endStream: Токен авторизации отсутствует');
         await userStore.checkAuth();
@@ -295,15 +281,12 @@ export const useStreamStore = defineStore('stream', () => {
         }
       }
       
-      // Явно устанавливаем токен авторизации перед запросом
       const { setAuthToken } = await import('@/api/manual');
       setAuthToken(userStore.token);
       
-      // Завершаем стрим
       await streamClient.endStream();
       console.log('endStream: Стрим успешно завершен');
       
-      // Обновляем список стримов пользователя
       await fetchCurrentUserStreams();
       
       return true;
@@ -340,7 +323,6 @@ export const useStreamStore = defineStore('stream', () => {
     try {
       console.log(`endStreamById: Завершение стрима с ID ${streamId}`);
       
-      // Проверяем наличие токена авторизации
       if (!userStore.token) {
         console.warn('endStreamById: Токен авторизации отсутствует');
         await userStore.checkAuth();
@@ -353,10 +335,8 @@ export const useStreamStore = defineStore('stream', () => {
       await streamClient.endStreamById(streamId);
       console.log('endStreamById: Стрим успешно завершен');
       
-      // Обновляем список стримов пользователя
       await fetchCurrentUserStreams();
       
-      // Если текущий стрим - это тот, который мы завершили, обновляем его
       if (currentStream.value && currentStream.value.id === streamId) {
         await fetchStreamById(streamId);
       }
@@ -386,7 +366,6 @@ export const useStreamStore = defineStore('stream', () => {
     try {
       const streams = await streamClient.searchStreams(query);
       
-      // Преобразуем объекты в обычные JS объекты и обогащаем их
       const processedStreams = streams.map(stream => enrichStream(stream));
       
       console.log('Search results:', processedStreams);
@@ -407,21 +386,15 @@ export const useStreamStore = defineStore('stream', () => {
   const setActiveStream = (stream) => {
     if (!stream) return;
     
-    // Обогащаем стрим дополнительными методами
     const enrichedStream = enrichStream(stream);
     
-    // Находим стрим в списке стримов пользователя и обновляем его
     const index = currentUserStreams.value.findIndex(s => s.id === stream.id);
     if (index !== -1) {
       currentUserStreams.value[index] = enrichedStream;
     } else {
-      // Если стрим не найден в списке, добавляем его
-      // Учитываем, что у пользователя может быть только один активный стрим
       if (enrichedStream.isLive) {
-        // Если добавляемый стрим активный, убедимся что других активных нет
         const existingActiveIndex = currentUserStreams.value.findIndex(s => s.isLive && s.id !== stream.id);
         if (existingActiveIndex !== -1) {
-          // Если есть другой активный стрим, деактивируем его
           currentUserStreams.value[existingActiveIndex].isLive = false;
         }
       }
@@ -432,7 +405,6 @@ export const useStreamStore = defineStore('stream', () => {
   };
   
   return {
-    // Состояние
     allStreams,
     liveStreams,
     currentUserStreams,
@@ -440,11 +412,9 @@ export const useStreamStore = defineStore('stream', () => {
     isLoading,
     error,
     
-    // Вычисляемые свойства
     hasActiveStream,
     activeStream,
     
-    // Действия
     fetchAllStreams,
     fetchLiveStreams,
     fetchCurrentUserStreams,

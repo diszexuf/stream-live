@@ -20,7 +20,6 @@ const handleLogout = () => {
 
 const handleSearch = async () => {
   if (searchQuery.value.trim()) {
-    // Перенаправляем на главную страницу с параметром поиска
     router.push({
       path: '/',
       query: { search: searchQuery.value.trim() }
