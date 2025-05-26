@@ -79,8 +79,9 @@ openApiGenerate {
             skipDefaultInterface : 'true',
             useTags              : 'true',
             useSpringValidation  : 'true',
-            library: 'spring-boot',
-            useJakartaEe: 'true',
+            library              : 'spring-boot',
+            useJakartaEe         : 'true',
+            useNullable          : 'false'
     ]
 }
 

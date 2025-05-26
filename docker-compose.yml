@@ -37,6 +37,7 @@ services:
 volumes:
   postgres_data:
   rtmp_data:
+
 #  rtmp:
 #    image: tiangolo/nginx-rtmp
 #    container_name: streamlive-rtmp
