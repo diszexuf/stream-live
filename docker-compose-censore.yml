@@ -25,56 +25,38 @@ services:
     image: tiangolo/nginx-rtmp
     container_name: streamlive-rtmp
     ports:
-      - "1935:1935"  # rtmp порт для входящего потока
-      - "8088:80"     # http порт для HLS
+      - "1935:1935"
+      - "8088:80"
     volumes:
-      - ./rtmp/nginx.conf:/etc/nginx/nginx.conf:ro
-      - rtmp_data:/var/www/html/hls
+      - ./rtmp/nginx-censor.conf:/etc/nginx/nginx.conf:ro
+      - ./censore_module/hls_data:/var/www/html/hls
     restart: unless-stopped
     networks:
       - streamlive-network
-
-volumes:
-  postgres_data:
-  rtmp_data:
-
-#  work with censor
-#  rtmp:
-#    image: tiangolo/nginx-rtmp
-#    container_name: streamlive-rtmp
-#    ports:
-#      - "1935:1935"
-#      - "8088:80"
-#    volumes:
-#      - ./rtmp/nginx.conf:/etc/nginx/nginx.conf:ro
-#      - hls_data:/var/www/html/hls
-#    restart: unless-stopped
-#    networks:
-#      - streamlive-network
-#    healthcheck:
-#      test: ["CMD", "curl", "-f", "http://localhost/stat"]
-#      interval: 10s
-#      timeout: 5s
-#      retries: 5
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/stat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 #  ad-filter:
 #    build:
 #      context: ./censore_module
-#      dockerfile: ../Dockerfile-python
+#      dockerfile: Dockerfile-python
 #    container_name: streamlive-ad-filter
 #    volumes:
 #      - ./censore_module/models/vosk-model-small-ru-0.22:/app/models/vosk-model-small-ru-0.22:ro
 #      - ./censore_module/models/ad_recognizer:/app/models/ad_recognizer:ro
-#      - hls_data:/app/hls
+#      - ./hls_data:/app/hls
 #    restart: unless-stopped
 #    networks:
 #      - streamlive-network
 #    depends_on:
 #      rtmp:
 #        condition: service_healthy
-#volumes:
-#  postgres_data:
-#  hls_data:
+
+volumes:
+  postgres_data:
 
 networks:
   streamlive-network:

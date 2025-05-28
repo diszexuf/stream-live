@@ -462,7 +462,7 @@ onUnmounted(() => {
                 </v-btn>
                 
                 <v-dialog v-model="showObsInstructions" max-width="600px">
-                  <v-card>
+                  <v-card class="p-4">
                     <v-card-title class="text-h5">
                       Настройка OBS для стриминга
                     </v-card-title>
@@ -474,22 +474,11 @@ onUnmounted(() => {
                         <li class="mb-2">Перейдите в меню <strong>Настройки</strong> → <strong>Вещание</strong></li>
                         <li class="mb-2">Выберите <strong>Сервис</strong>: Custom</li>
                         <li class="mb-2">В поле <strong>Сервер</strong> введите: <code>rtmp://127.0.0.1:1935/live</code></li>
-                        <li class="mb-2">В поле <strong>Ключ потока</strong> введите: <code>{{ streamStore.currentStream.streamKey }}</code></li>
+                        <li class="mb-2">В поле <strong>Ключ потока</strong> введите ключ потока </li>
                         <li class="mb-2">Нажмите <strong>OK</strong> для сохранения настроек</li>
                         <li class="mb-2">Нажмите кнопку <strong>Начать трансляцию</strong> в главном окне OBS</li>
                       </ol>
-                      
-                      <p>Через несколько секунд после начала трансляции в OBS, ваш стрим станет доступен для просмотра.</p>
-                      
-                      <div class="mt-4 pa-4 bg-grey-lighten-4 rounded">
-                        <p class="text-subtitle-1 font-weight-bold">Важно!</p>
-                        <p>Убедитесь, что:</p>
-                        <ul>
-                          <li>Docker-контейнер с RTMP-сервером запущен</li>
-                          <li>Порт 1935 доступен и не заблокирован брандмауэром</li>
-                          <li>OBS настроен на правильное разрешение и битрейт (рекомендуется 720p и 2500-3500 Kbps)</li>
-                        </ul>
-                      </div>
+
                     </v-card-text>
                     <v-card-actions>
                       <v-spacer></v-spacer>

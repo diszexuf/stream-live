@@ -10,11 +10,12 @@ from watchdog.events import FileSystemEventHandler
 import time
 import os
 
+
 class AdFilterHandler(FileSystemEventHandler):
     def __init__(self, stream_key, speech_model, ad_model):
         self.stream_key = stream_key
-        self.input_path = Path(f"/app/hls/input/{stream_key}")
-        self.output_path = Path(f"/app/hls/output/{stream_key}")
+        self.input_path = Path(f"./hls_data/input/{stream_key}")
+        self.output_path = Path(f"./hls_data/output/{stream_key}")
         self.processor = SegmentProcessor(speech_model.model, ad_model)
         self.processed_segments = set()
 
@@ -57,7 +58,6 @@ class AdFilterHandler(FileSystemEventHandler):
         logging.info(f"Обновлён плейлист: добавлен сегмент {rel_path}")
 
     def on_created(self, event):
-        """Обрабатывает создание нового файла в input директории."""
         if event.is_directory or not event.src_path.endswith('.ts'):
             return
 
@@ -67,31 +67,26 @@ class AdFilterHandler(FileSystemEventHandler):
 
         logging.info(f"Обнаружен новый сегмент: {input_ts} -> {output_ts}")
 
-        # Обрабатываем сегмент
         try:
             processed = self.processor.process_ts_segment(str(input_ts), str(output_ts), segment_idx)
             if processed:
                 self.processed_segments.add(segment_idx - 1 if segment_idx > 0 else segment_idx)
                 shutil.copy2(input_ts, output_ts)
-                self._update_playlist(output_ts, 3)  # Предполагаемая длительность 3 секунды
+                self._update_playlist(output_ts, 3)
                 logging.info(f"Сегмент {input_ts.name} обработан и скопирован в {output_ts}")
             else:
                 logging.warning(f"Сегмент {input_ts.name} содержит рекламу и пропущен")
         except Exception as e:
             logging.error(f"Ошибка при обработке сегмента {input_ts}: {e}")
 
-        # Финализация последнего сегмента (если это последний)
-        if segment_idx == len(os.listdir(self.input_path)) - 1:
-            self.processor.finalize_processing(str(output_ts))
-
     def on_modified(self, event):
         """Обрабатывает изменения (например, плейлиста)."""
         if event.src_path.endswith('.m3u8'):
             logging.info(f"Обнаружено изменение плейлиста: {event.src_path}")
 
+
 def monitor_stream(stream_key, speech_model, ad_model):
-    """Мониторит директорию input для заданного stream_key."""
-    input_path = Path(f"/app/hls/input/{stream_key}")
+    input_path = Path(f"./censore_module/hls_data/input/{stream_key}")
     if not input_path.exists():
         logging.info(f"Директория {input_path} не существует, ожидаем её создания...")
         while not input_path.exists():
@@ -110,9 +105,10 @@ def monitor_stream(stream_key, speech_model, ad_model):
         observer.stop()
     observer.join()
 
+
 def discover_streams(speech_model, ad_model):
     """Обнаруживает все stream_key в input и запускает мониторинг."""
-    input_base_path = Path("/app/hls/input")
+    input_base_path = Path("./hls_data/input")
     input_base_path.mkdir(parents=True, exist_ok=True)
 
     while True:
@@ -123,62 +119,66 @@ def discover_streams(speech_model, ad_model):
                 monitor_stream(stream_key, speech_model, ad_model)
         time.sleep(5)
 
+
 def process_hls_playlist(input_playlist: Path, output_dir: Path,
                          speech_model: SpeechRecognitionModel, ad_model: AdRecognitionModel) -> Path:
-    """
-    Обрабатывает HLS-плейлист с учетом контекста между сегментами
-    """
-    # Инициализация обработчика сегментов
     processor = SegmentProcessor(speech_model.model, ad_model)
-
     playlist = m3u8.load(str(input_playlist))
     output_dir.mkdir(parents=True, exist_ok=True)
     segments_dir = output_dir / "processed_segments"
     segments_dir.mkdir(exist_ok=True)
 
-    # Создаем новый плейлист
     new_playlist = m3u8.M3U8()
     new_playlist.version = playlist.version
     new_playlist.target_duration = playlist.target_duration
     new_playlist.media_sequence = playlist.media_sequence
 
-    # Список для отслеживания обработанных сегментов
     processed_segments = set()
-
-    # Обрабатываем каждый сегмент
     for idx, segment in enumerate(playlist.segments):
         input_ts = input_playlist.parent / segment.uri
         output_ts = segments_dir / Path(segment.uri).name
-
         logging.debug(f"Обработка сегмента {idx}: {input_ts} -> {output_ts}")
-
-        # Пытаемся обработать текущий и следующий сегмент
         processed = processor.process_ts_segment(str(input_ts), str(output_ts), idx)
+        if processed:
+            processed_segments.add(idx - 1 if idx > 0 else idx)
+            new_segment = m3u8.model.Segment(uri=f"processed_segments/{Path(segment.uri).name}",
+                                             duration=segment.duration)
+            new_playlist.segments.append(new_segment)
+
+    playlist_path = output_dir / "processed_playlist.m3u8"
+    with open(playlist_path, "w") as f:
+        f.write(new_playlist.dumps())
+    return playlist_path
+
 
 def main():
-    # Настройка логирования
-    logging.basicConfig(
-        level=logging.ERROR,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler('/app/processing.log', encoding='utf-8'),
-            logging.StreamHandler()
-        ]
-    )
+    try:
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.StreamHandler()
+            ]
+        )
+        speech_model_path = "models/vosk-model-small-ru-0.22"
+        ad_model_path = "models/ad_recognizer"
 
-    # Пути к моделям
-    speech_model_path = "/models/vosk-model-small-ru-0.22"
-    ad_model_path = "/models/ad_recognizer"
+        logging.debug("Начало обработки HLS в реальном времени")
 
-    logging.debug("Начало обработки HLS в реальном времени")
+        logging.debug("Инициализация модели Vosk...")
+        speech_model = SpeechRecognitionModel(speech_model_path)
+        logging.debug("Модель Vosk успешно загружена")
 
-    # Инициализация моделей
-    logging.debug("Инициализация моделей...")
-    speech_model = SpeechRecognitionModel(speech_model_path)
-    ad_model = AdRecognitionModel(ad_model_path)
+        logging.debug("Инициализация модели AdRecognition...")
+        ad_model = AdRecognitionModel(ad_model_path)
+        logging.debug("Модель AdRecognition успешно загружена")
 
-    # Запуск мониторинга всех стримов
-    discover_streams(speech_model, ad_model)
+        logging.debug("Запуск мониторинга стримов...")
+        discover_streams(speech_model, ad_model)
+    except Exception as e:
+        logging.error(f"Произошла ошибка в main: {e}")
+        raise
+
 
 if __name__ == "__main__":
     main()
