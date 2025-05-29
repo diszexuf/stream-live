@@ -21,11 +21,11 @@ class AdFilterHandler(FileSystemEventHandler):
 
         # Создаём output директорию и поддиректорию для сегментов
         self.output_path.mkdir(parents=True, exist_ok=True)
-        self.segments_dir = self.output_path / "processed_segments"
+        self.segments_dir = self.output_path
         self.segments_dir.mkdir(exist_ok=True)
 
         # Инициализируем плейлист
-        self.playlist_path = self.output_path / "processed_playlist.m3u8"
+        self.playlist_path = self.output_path / "index.m3u8"
         self._initialize_playlist()
 
         logging.info(f"Инициализирован обработчик для stream_key: {stream_key}")
@@ -48,7 +48,7 @@ class AdFilterHandler(FileSystemEventHandler):
         with open(self.playlist_path, "r") as f:
             current_playlist = m3u8.load(f.read())
 
-        rel_path = f"processed_segments/{Path(segment_path).name}"
+        rel_path = f"{Path(segment_path).name}"
         new_segment = m3u8.model.Segment(uri=rel_path, duration=duration)
         current_playlist.segments.append(new_segment)
         current_playlist.target_duration = max(current_playlist.target_duration, duration)
@@ -86,7 +86,7 @@ class AdFilterHandler(FileSystemEventHandler):
 
 
 def monitor_stream(stream_key, speech_model, ad_model):
-    input_path = Path(f"./censore_module/hls_data/input/{stream_key}")
+    input_path = Path(f"./hls_data/input/{stream_key}")
     if not input_path.exists():
         logging.info(f"Директория {input_path} не существует, ожидаем её создания...")
         while not input_path.exists():
@@ -125,7 +125,7 @@ def process_hls_playlist(input_playlist: Path, output_dir: Path,
     processor = SegmentProcessor(speech_model.model, ad_model)
     playlist = m3u8.load(str(input_playlist))
     output_dir.mkdir(parents=True, exist_ok=True)
-    segments_dir = output_dir / "processed_segments"
+    segments_dir = output_dir
     segments_dir.mkdir(exist_ok=True)
 
     new_playlist = m3u8.M3U8()
@@ -141,11 +141,11 @@ def process_hls_playlist(input_playlist: Path, output_dir: Path,
         processed = processor.process_ts_segment(str(input_ts), str(output_ts), idx)
         if processed:
             processed_segments.add(idx - 1 if idx > 0 else idx)
-            new_segment = m3u8.model.Segment(uri=f"processed_segments/{Path(segment.uri).name}",
+            new_segment = m3u8.model.Segment(uri=f"{Path(segment.uri).name}",
                                              duration=segment.duration)
             new_playlist.segments.append(new_segment)
 
-    playlist_path = output_dir / "processed_playlist.m3u8"
+    playlist_path = output_dir / "index.m3u8"
     with open(playlist_path, "w") as f:
         f.write(new_playlist.dumps())
     return playlist_path

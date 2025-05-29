@@ -1,3 +1,4 @@
+import logging
 import tempfile
 import subprocess
 import os
@@ -7,15 +8,6 @@ from pydub import AudioSegment
 
 
 def extract_audio_from_ts(ts_file: str) -> str:
-    """
-    Извлекает аудио из TS файла во временный WAV файл
-    
-    Args:
-        ts_file: путь к TS файлу
-        
-    Returns:
-        путь к временному WAV файлу с аудио
-    """
     temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
     temp_audio_path = temp_audio.name
     temp_audio.close()
@@ -29,14 +21,13 @@ def extract_audio_from_ts(ts_file: str) -> str:
             '-acodec', 'pcm_s16le',
             '-ar', '44100',
             '-ac', '1',
+            '-t', '3',
             temp_audio_path
         ]
-
         subprocess.run(command, check=True, capture_output=True)
         return temp_audio_path
-
     except subprocess.CalledProcessError as e:
-        print(f"Ошибка при извлечении аудио: {e.stderr.decode()}")
+        logging.error(f"Ошибка при извлечении аудио: {e.stderr.decode()}")
         try:
             os.unlink(temp_audio_path)
         except:
@@ -45,17 +36,6 @@ def extract_audio_from_ts(ts_file: str) -> str:
 
 
 def generate_beep(duration_ms: int, frequency: int = 1000, volume: float = 0.2) -> AudioSegment:
-    """
-    Генерирует писк заданной длительности и частоты
-    
-    Args:
-        duration_ms: длительность в миллисекундах
-        frequency: частота в Гц
-        volume: громкость (0.0 - 1.0)
-        
-    Returns:
-        AudioSegment с писком
-    """
     sample_rate = 44100
     t = np.linspace(0, duration_ms / 1000, int(duration_ms * sample_rate / 1000))
     beep_data = np.sin(2 * np.pi * frequency * t) * volume
