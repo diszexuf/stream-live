@@ -30,7 +30,6 @@ const getHlsUrl = (stream) => {
   if (!stream || !stream.streamKey) return '';
   
   const url = `http://127.0.0.1:8088/hls/${stream.streamKey}/index.m3u8`;
-  console.log('HLS URL:', url);
   return url;
 }
 
@@ -41,9 +40,7 @@ const updateVideoSource = (stream) => {
     src: getHlsUrl(stream),
     type: 'application/x-mpegURL'
   }
-  
-  console.log('Обновление источника видео:', newSource);
-  
+
   player.value.src(newSource)
   player.value.load()
   player.value.play().catch(error => {
@@ -53,7 +50,6 @@ const updateVideoSource = (stream) => {
 
 const initPlayer = () => {
   if (!streamStore.currentStream || !streamStore.currentStream.isLive) {
-    console.log('Не инициализируем плеер: стрим не активен или не загружен', streamStore.currentStream);
     return;
   }
   

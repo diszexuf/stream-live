@@ -4,4 +4,4 @@
   "withSeparateModelsAndApi": true,
   "apiSuffix": "Service",
   "modelPropertyNaming": "camelCase"
-} 
+}

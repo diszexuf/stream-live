@@ -30,8 +30,7 @@ public class UpdateStreamUseCase {
     Stream stream = streamRepository.findByUserAndIsLiveTrue(user);
     stream.setTitle(streamRequestDto.getTitle());
     stream.setDescription(stream.getDescription());
-    StreamResponseDto dto = mapToDto(streamRepository.save(stream));
-    return dto;
+    return mapToDto(streamRepository.save(stream));
   }
 
   public StreamResponseDto mapToDto(Stream stream) {
@@ -41,7 +40,7 @@ public class UpdateStreamUseCase {
         .title(stream.getTitle())
         .description(stream.getDescription())
         .thumbnailUrl(stream.getThumbnailUrl())
-        .streamKey(stream.getStreamKey())
+        .streamKey(stream.getUser().getStreamKey())
         .tags(stream.getTags().stream().toList())
         .isLive(stream.getIsLive())
         .startedAt(stream.getStartedAt().atOffset(ZoneOffset.UTC))

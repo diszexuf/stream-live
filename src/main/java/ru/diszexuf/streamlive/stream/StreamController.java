@@ -22,54 +22,53 @@ import java.util.UUID;
 @Slf4j
 public class StreamController implements StreamsApi {
 
+    private final CreateStreamUseCase createStreamUseCase;
+    private final DeleteStreamUseCase deleteStreamUseCase;
+    private final GetAllStreamsUseCase getAllStreamsUseCase;
+    private final GetLiveStreamsUseCase getLiveStreamsUseCase;
+    private final GetStreamByIdUseCase getStreamByIdUseCase;
+    private final GetStreamsByUserUseCase getStreamsByUserUseCase;
+    private final SearchStreamsUseCase searchStreamsUseCase;
+    private final UpdateStreamUseCase updateStreamUseCase;
 
-  private final CreateStreamUseCase createStreamUseCase;
-  private final DeleteStreamUseCase deleteStreamUseCase;
-  private final GetAllStreamsUseCase getAllStreamsUseCase;
-  private final GetLiveStreamsUseCase getLiveStreamsUseCase;
-  private final GetStreamByIdUseCase getStreamByIdUseCase;
-  private final GetStreamsByUserUseCase getStreamsByUserUseCase;
-  private final SearchStreamsUseCase searchStreamsUseCase;
-  private final UpdateStreamUseCase updateStreamUseCase;
+    @Override
+    public ResponseEntity<StreamResponseDto> createStream(StreamRequestDto streamRequestDto) {
+        return ResponseEntity.ok(createStreamUseCase.execute(streamRequestDto));
+    }
 
-  @Override
-  public ResponseEntity<StreamResponseDto> createStream(StreamRequestDto streamRequestDto) {
-    return ResponseEntity.ok(createStreamUseCase.execute(streamRequestDto));
-  }
+    @Override
+    public ResponseEntity<Void> endStream() {
+        deleteStreamUseCase.execute();
+        return ResponseEntity.ok().build();
+    }
 
-  @Override
-  public ResponseEntity<Void> endStream() {
-    deleteStreamUseCase.execute();
-    return ResponseEntity.ok().build();
-  }
+    @Override
+    public ResponseEntity<List<StreamResponseDto>> getAllStreams() {
+        return ResponseEntity.ok(getAllStreamsUseCase.execute());
+    }
 
-  @Override
-  public ResponseEntity<List<StreamResponseDto>> getAllStreams() {
-    return ResponseEntity.ok(getAllStreamsUseCase.execute());
-  }
+    @Override
+    public ResponseEntity<List<StreamResponseDto>> getLiveStreams() {
+        return ResponseEntity.ok(getLiveStreamsUseCase.execute());
+    }
 
-  @Override
-  public ResponseEntity<List<StreamResponseDto>> getLiveStreams() {
-    return ResponseEntity.ok(getLiveStreamsUseCase.execute());
-  }
+    @Override
+    public ResponseEntity<StreamResponseDto> getStreamById(@PathVariable("id") UUID streamId) {
+        return ResponseEntity.ok(getStreamByIdUseCase.execute(streamId));
+    }
 
-  @Override
-  public ResponseEntity<StreamResponseDto> getStreamById(@PathVariable("id") UUID streamId) {
-    return ResponseEntity.ok(getStreamByIdUseCase.execute(streamId));
-  }
+    @Override
+    public ResponseEntity<List<StreamResponseDto>> getStreamsByUser(@PathVariable("userId") UUID id) {
+        return ResponseEntity.ok(getStreamsByUserUseCase.execute(id));
+    }
 
-  @Override
-  public ResponseEntity<List<StreamResponseDto>> getStreamsByUser(@PathVariable("userId") UUID id) {
-    return ResponseEntity.ok(getStreamsByUserUseCase.execute(id));
-  }
+    @Override
+    public ResponseEntity<List<StreamResponseDto>> searchStreams(String query) {
+        return ResponseEntity.ok(searchStreamsUseCase.execute(query));
+    }
 
-  @Override
-  public ResponseEntity<List<StreamResponseDto>> searchStreams(String query) {
-    return ResponseEntity.ok(searchStreamsUseCase.execute(query));
-  }
-
-  @Override
-  public ResponseEntity<StreamResponseDto> updateStream(StreamRequestDto streamRequestDto) {
-    return ResponseEntity.ok(updateStreamUseCase.execute(streamRequestDto));
-  }
+    @Override
+    public ResponseEntity<StreamResponseDto> updateStream(StreamRequestDto streamRequestDto) {
+        return ResponseEntity.ok(updateStreamUseCase.execute(streamRequestDto));
+    }
 }

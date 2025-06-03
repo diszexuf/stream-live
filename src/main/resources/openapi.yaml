@@ -15,189 +15,8 @@ servers:
   - url: http://localhost:8080/api
     description: Local dev platform
 
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: JWT token obtained from /auth/login
-
-  schemas:
-    # Auth
-    AuthResponse:
-      type: object
-      properties:
-        token:
-          type: string
-          description: JWT token for authentication
-          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-
-    UserAuthRequest:
-      type: object
-      required:
-        - username
-        - password
-      properties:
-        username:
-          type: string
-          example: "john_doe"
-        password:
-          type: string
-          format: password
-          example: "securePassword123"
-
-    # Users
-    UserRegisterRequest:
-      type: object
-      required:
-        - username
-        - email
-        - password
-      properties:
-        username:
-          type: string
-          minLength: 3
-          maxLength: 20
-          example: "john_doe"
-        email:
-          type: string
-          format: email
-          example: "john@example.com"
-        password:
-          type: string
-          format: password
-          minLength: 8
-          example: "securePassword123"
-        avatarUrl:
-          type: string
-          example: "https://example.com/avatar.jpg"
-        bio:
-          type: string
-          maxLength: 500
-          example: "Streamer and gamer"
-
-    UserResponse:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          example: "550e8400-e29b-41d4-a716-446655440000"
-        username:
-          type: string
-          example: "john_doe"
-        email:
-          type: string
-          example: "john@example.com"
-        avatarUrl:
-          type: string
-        bio:
-          type: string
-        followerCount:
-          type: integer
-          minimum: 0
-          example: 42
-        streamKey:
-          type: string
-          format: uuid
-          description: Only visible for own profile or admins
-          example: "550e8400-e29b-41d4-a716-446655440001"
-
-    UserUpdateRequest:
-      type: object
-      properties:
-        email:
-          type: string
-          format: email
-        avatarUrl:
-          type: string
-        bio:
-          type: string
-          maxLength: 500
-
-    StreamRequest:
-      type: object
-      required:
-        - title
-      properties:
-        title:
-          type: string
-          maxLength: 100
-          example: "My Awesome Stream"
-        description:
-          type: string
-          maxLength: 500
-        tags:
-          type: array
-          items:
-            type: string
-            maxLength: 20
-          example: ["gaming", "esports"]
-        thumbnailUrl:
-          type: string
-
-    StreamResponse:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        userId:
-          type: string
-          format: uuid
-        title:
-          type: string
-        description:
-          type: string
-        thumbnailUrl:
-          type: string
-        streamKey:
-          type: string
-          format: uuid
-        tags:
-          type: array
-          items:
-            type: string
-        isLive:
-          type: boolean
-        startedAt:
-          type: string
-          format: date-time
-        endedAt:
-          type: string
-          format: date-time
-        viewerCount:
-          type: integer
-          minimum: 0
-
-  parameters:
-    UserUsername:
-      name: userUsername
-      in: path
-      required: true
-      schema:
-        type: string
-        example: "john_doe"
-    UserId:
-      name: id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-        example: "550e8400-e29b-41d4-a716-446655440000"
-    StreamId:
-      name: id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-        example: "550e8400-e29b-41d4-a716-446655440002"
-
 paths:
-  /auth/login:
+  /sessions:
     post:
       tags: [auth]
       summary: Authenticate user
@@ -220,9 +39,9 @@ paths:
         404:
           description: User not found
 
-  /auth/register:
+  /users:
     post:
-      tags: [auth]
+      tags: [ auth ]
       summary: Register new user
       operationId: registerUser
       requestBody:
@@ -242,7 +61,6 @@ paths:
           description: Validation error
         409:
           description: Username or email already exists
-  /users:
     get:
       tags: [users]
       summary: Get all users
@@ -260,6 +78,45 @@ paths:
                   $ref: '#/components/schemas/UserResponse'
         401:
           description: Unauthorized
+  /users/availability/username:
+    get:
+      tags: [ users ]
+      summary: Check if a username is available
+      operationId: checkUsernameAvailability
+      parameters:
+        - name: username
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "john_doe"
+      responses:
+        200:
+          description: Boolean indicating availability of the username
+          content:
+            application/json:
+              schema:
+                type: boolean
+  /users/availability/email:
+    get:
+      tags: [ users ]
+      summary: Check if an email is available
+      operationId: checkEmailAvailability
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+            format: email
+            example: "john@example.com"
+      responses:
+        200:
+          description: Boolean indicating availability of the email
+          content:
+            application/json:
+              schema:
+                type: boolean
   /users/me:
     get:
       tags: [ users ]
@@ -291,6 +148,10 @@ paths:
       responses:
         200:
           description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
         400:
           description: Validation error
         401:
@@ -299,7 +160,6 @@ paths:
           description: Forbidden (not your profile)
         404:
           description: User not found
-
   /users/me/streamkey:
     put:
       tags: [ users ]
@@ -535,3 +395,184 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/StreamResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login
+
+  schemas:
+    # Auth
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT token for authentication
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    UserAuthRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: "john_doe"
+        password:
+          type: string
+          format: password
+          example: "securePassword123"
+
+    # Users
+    UserRegisterRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 20
+          example: "john_doe"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: "securePassword123"
+        avatarUrl:
+          type: string
+          example: "https://example.com/avatar.jpg"
+        bio:
+          type: string
+          maxLength: 500
+          example: "Streamer and gamer"
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        username:
+          type: string
+          example: "john_doe"
+        email:
+          type: string
+          example: "john@example.com"
+        avatarUrl:
+          type: string
+        bio:
+          type: string
+        followerCount:
+          type: integer
+          minimum: 0
+          example: 42
+        streamKey:
+          type: string
+          format: uuid
+          description: Only visible for own profile or admins
+          example: "550e8400-e29b-41d4-a716-446655440001"
+
+    UserUpdateRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        avatarUrl:
+          type: string
+        bio:
+          type: string
+          maxLength: 500
+
+    StreamRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          maxLength: 100
+          example: "My Awesome Stream"
+        description:
+          type: string
+          maxLength: 500
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 20
+          example: ["gaming", "esports"]
+        thumbnailUrl:
+          type: string
+
+    StreamResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        thumbnailUrl:
+          type: string
+        streamKey:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          items:
+            type: string
+        isLive:
+          type: boolean
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+        viewerCount:
+          type: integer
+          minimum: 0
+
+  parameters:
+    UserUsername:
+      name: userUsername
+      in: path
+      required: true
+      schema:
+        type: string
+        example: "john_doe"
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440000"
+    StreamId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440002"

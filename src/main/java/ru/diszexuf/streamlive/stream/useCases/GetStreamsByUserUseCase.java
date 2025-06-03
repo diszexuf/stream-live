@@ -1,5 +1,6 @@
 package ru.diszexuf.streamlive.stream.useCases;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import ru.diszexuf.streamlive.common.UseCase;
 import ru.diszexuf.streamlive.model.StreamResponseDto;
@@ -15,6 +16,7 @@ import java.util.UUID;
 
 @UseCase
 @RequiredArgsConstructor
+@Transactional
 public class GetStreamsByUserUseCase {
     private final StreamRepository streamRepository;
     private final UserRepository userRepository;
@@ -32,7 +34,7 @@ public class GetStreamsByUserUseCase {
             .title(stream.getTitle())
             .description(stream.getDescription())
             .thumbnailUrl(stream.getThumbnailUrl())
-            .streamKey(stream.getStreamKey())
+            .streamKey(stream.getUser().getStreamKey())
             .tags(stream.getTags().stream().toList())
             .isLive(stream.getIsLive())
             .startedAt(stream.getStartedAt().atOffset(ZoneOffset.UTC))

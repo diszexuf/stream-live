@@ -20,8 +20,7 @@ public class GetAllUsersUseCase {
   public List<UserResponseDto> execute() {
     log.info("Get all users");
     List<User> users = userRepository.findAll();
-    List<UserResponseDto> dtos = users.stream().map(this::mapToDto).toList();
-    return dtos;
+      return users.stream().map(this::mapToDto).toList();
   }
 
   public UserResponseDto mapToDto(User user) {

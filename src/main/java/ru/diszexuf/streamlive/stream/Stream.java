@@ -41,9 +41,6 @@ public class Stream extends CoreEntity {
     @Column(name = "thumbnail_url", nullable = false)
     private String thumbnailUrl;
 
-    @Column(name = "stream_key", nullable = false, updatable = false)
-    private UUID streamKey;
-
     @ElementCollection
     @CollectionTable(
         name = "stream_tags",

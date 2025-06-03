@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "clean:api": "rimraf src/api",
-    "generate:api": "openapi-generator-cli generate -i ../src/main/resources/openapi.yaml -g javascript -o src/api --config openapi-config.json",
+    "generate:api": "openapi-generator-cli generate -i ../src/main/resources/openapi.yaml -g javascript -o src/api --config openapi-config.json -p skipDefaultUserAgent=true",
     "start": "npm run clean:api && npm run generate:api && npm run dev",
     "dev": "vite",
     "build": "vite build",
