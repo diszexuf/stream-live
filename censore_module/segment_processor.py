@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 from typing import Dict, List, Tuple
 from pydub import AudioSegment
@@ -5,7 +6,7 @@ import logging
 import os
 from pathlib import Path
 
-from audio_processor import extract_audio_from_ts, replace_audio_segment
+from audio_processor import extract_audio_from_ts, replace_audio_segment, is_audio_silent
 from speech_recognizer import transcribe_audio
 from ad_detector import detect_ad
 from utils import ensure_dir_exists, safe_delete_file
@@ -21,48 +22,83 @@ class SegmentProcessor:
     def __init__(self, speech_model, ad_model):
         self.speech_model = speech_model
         self.ad_model = ad_model
-        self.prev_segment_data = None
+        self.segment_buffer = {}  # Буфер для анализа стыков
+        self.last_transcription = ""  # Последний текст для контекста
 
-    def _save_processed_segment(self, input_file: str, audio_file: str, audio: AudioSegment, output_file: str) -> bool:
-        """Сохраняет обработанный сегмент с заменой аудио."""
+        # Параметры для обработки коротких сегментов
+        self.min_audio_duration = 0.5  # Минимум полсекунды аудио
+        self.silence_threshold = -55  # dB для определения тишины
+        self.min_speech_duration = 0.3  # Минимум речи для транскрипции
+
+    def _is_audio_too_short_or_silent(self, audio_file: str) -> Tuple[bool, str]:
+        """
+        Проверяет, слишком ли короткое или тихое аудио для обработки
+        Returns: (is_problematic, reason)
+        """
         try:
-            # Экспортируем обработанное аудио
-            audio.export(audio_file, format="wav")
-            output_dir = Path(output_file).parent
-            ensure_dir_exists(str(output_dir))
+            if not os.path.exists(audio_file):
+                return True, "audio_missing"
 
-            # Команда FFmpeg для замены аудио в TS сегменте
-            command = [
-                'ffmpeg',
-                '-y',  # Перезаписывать файлы
-                '-i', input_file,  # Входной TS файл
-                '-i', audio_file,  # Обработанное аудио
-                '-c:v', 'copy',  # Копировать видео без перекодирования
-                '-c:a', 'aac',  # Кодировать аудио в AAC
-                '-bsf:v', 'h264_mp4toannexb',  # Конвертировать H.264 в Annex B
-                '-map', '0:v:0',  # Взять видео из первого входа
-                '-map', '1:a:0',  # Взять аудио из второго входа
-                '-avoid_negative_ts', 'make_zero',  # Избегать отрицательных временных меток
-                '-fflags', '+genpts',  # Генерировать PTS
-                output_file
-            ]
+            audio = AudioSegment.from_wav(audio_file)
+            duration = len(audio) / 1000.0
 
-            result = subprocess.run(command, check=True, capture_output=True, text=True)
-            logging.debug(f"FFmpeg успешно создал сегмент: {output_file}")
+            # Слишком короткое
+            if duration < self.min_audio_duration:
+                return True, f"too_short_{duration:.2f}s"
 
-            # Удаляем временный аудио файл
-            safe_delete_file(audio_file)
-            return True
+            # Проверяем на тишину более детально
+            if is_audio_silent(audio_file, self.silence_threshold, self.min_speech_duration):
+                return True, "silent"
 
-        except subprocess.CalledProcessError as e:
-            logging.error(f"Ошибка FFmpeg при сохранении сегмента {output_file}: {e.stderr}")
-            return False
+            # Проверяем среднюю громкость
+            if audio.dBFS < self.silence_threshold:
+                return True, f"too_quiet_{audio.dBFS:.1f}dB"
+
+            return False, "ok"
+
         except Exception as e:
-            logging.error(f"Неожиданная ошибка при сохранении сегмента {output_file}: {e}")
-            return False
+            logging.error(f"Ошибка при проверке аудио {audio_file}: {e}")
+            return True, f"error_{str(e)}"
 
-    def _combine_fragments(self, transcriptions: List[Dict], min_pause: float = 0.10) -> List[Dict]:
-        """Объединяет слова в фрагменты на основе пауз."""
+    def _safe_transcribe_audio(self, audio_file: str) -> List[Dict]:
+        """Безопасная транскрипция с обработкой ошибок"""
+        try:
+            is_problematic, reason = self._is_audio_too_short_or_silent(audio_file)
+
+            if is_problematic:
+                logging.debug(f"Пропускаем транскрипцию: {reason}")
+                return []
+
+            transcriptions = transcribe_audio(audio_file, self.speech_model)
+
+            # Фильтруем слишком короткие результаты
+            if not transcriptions:
+                logging.debug("Транскрипция пуста")
+                return []
+
+            # Проверяем качество транскрипции
+            total_speech_time = 0
+            valid_words = 0
+
+            for trans in transcriptions:
+                if 'start' in trans and 'end' in trans and 'word' in trans:
+                    duration = trans['end'] - trans['start']
+                    if duration > 0.1 and len(trans['word'].strip()) > 1:
+                        total_speech_time += duration
+                        valid_words += 1
+
+            if total_speech_time < self.min_speech_duration or valid_words == 0:
+                logging.debug(f"Недостаточно речи: {total_speech_time:.2f}s, слов: {valid_words}")
+                return []
+
+            return transcriptions
+
+        except Exception as e:
+            logging.error(f"Ошибка транскрипции {audio_file}: {e}")
+            return []
+
+    def _combine_fragments_robust(self, transcriptions: List[Dict], min_pause: float = 0.15) -> List[Dict]:
+        """Объединяет слова в фрагменты с улучшенной обработкой коротких фрагментов"""
         if not transcriptions:
             return []
 
@@ -72,42 +108,88 @@ class SegmentProcessor:
         current_words = []
 
         for i, entry in enumerate(transcriptions):
+            # Фильтруем очень короткие или подозрительные слова
+            word = entry.get("word", "").strip()
+            if len(word) < 1 or entry.get("end", 0) - entry.get("start", 0) < 0.05:
+                continue
+
             if current_start is None:
                 current_start = entry["start"]
                 current_words = []
 
-            current_words.append(entry["word"])
+            current_words.append(word)
             current_end = entry["end"]
 
-            # Проверяем, есть ли следующий элемент и достаточная ли пауза
+            # Проверяем паузу до следующего слова
             if i + 1 < len(transcriptions):
                 next_entry = transcriptions[i + 1]
-                pause = next_entry["start"] - current_end
+                pause = next_entry.get("start", 0) - current_end
 
-                if pause >= min_pause:
-                    # Сохраняем текущий фрагмент
+                if pause >= min_pause or len(current_words) >= 10:  # Длинные фразы разбиваем
+                    if len(" ".join(current_words).strip()) >= 3:  # Минимум 3 символа
+                        combined.append({
+                            "start": current_start,
+                            "end": current_end,
+                            "sentence": " ".join(current_words).strip(),
+                            "words": current_words.copy()
+                        })
+                    current_words = []
+                    current_start = None
+            else:
+                # Последний фрагмент
+                if current_words and len(" ".join(current_words).strip()) >= 3:
                     combined.append({
                         "start": current_start,
                         "end": current_end,
-                        "sentence": " ".join(current_words),
+                        "sentence": " ".join(current_words).strip(),
                         "words": current_words.copy()
                     })
-                    current_words = []
-                    current_start = None
-                    current_end = None
-            else:
-                # Последний элемент
-                combined.append({
-                    "start": current_start,
-                    "end": current_end,
-                    "sentence": " ".join(current_words),
-                    "words": current_words.copy()
-                })
 
         return combined
 
+    def _detect_ads_with_context(self, fragments: List[Dict], previous_context: str = "") -> Tuple[List[tuple], str]:
+        """
+        Обнаруживает рекламу с учетом контекста предыдущих сегментов
+        Returns: (ad_regions, current_text_for_next_context)
+        """
+        if not fragments:
+            return [], ""
+
+        ad_regions = []
+        current_text = " ".join([frag['sentence'] for frag in fragments])
+
+        # Анализируем каждый фрагмент
+        for frag in fragments:
+            sentence = frag['sentence']
+
+            # Добавляем контекст для лучшего анализа
+            context_sentence = f"{previous_context} {sentence}".strip()
+
+            # Сначала проверяем с контекстом
+            is_ad_with_context, conf_context = detect_ad(context_sentence, self.ad_model)
+            is_ad_alone, conf_alone = detect_ad(sentence, self.ad_model)
+
+            # Принимаем решение на основе обеих проверок
+            is_ad = is_ad_with_context or (is_ad_alone and conf_alone > 0.9)
+            confidence = max(conf_context, conf_alone)
+
+            if is_ad:
+                logging.debug(
+                    f"Реклама обнаружена: '{sentence}' (контекст: {is_ad_with_context}, соло: {is_ad_alone}, conf: {confidence:.3f})")
+                ad_regions.append((frag['start'], frag['end']))
+            else:
+                logging.debug(f"Обычная речь: '{sentence}' (conf: {confidence:.3f})")
+
+        # Объединяем близкие регионы
+        merged_regions = self._merge_overlapping_regions(ad_regions)
+
+        # Сохраняем последние 50 символов для контекста
+        context_for_next = current_text[-50:] if len(current_text) > 50 else current_text
+
+        return merged_regions, context_for_next
+
     def _merge_overlapping_regions(self, regions: List[tuple]) -> List[tuple]:
-        """Объединяет перекрывающиеся временные регионы."""
+        """Объединяет перекрывающиеся временные регионы с буфером"""
         if not regions:
             return []
 
@@ -116,201 +198,151 @@ class SegmentProcessor:
 
         for current in sorted_regions[1:]:
             last = merged[-1]
-            if current[0] <= last[1]:  # Перекрытие
+            # Добавляем небольшой буфер для объединения близких регионов
+            if current[0] <= last[1] + 0.5:  # 0.5 секунды буфер
                 merged[-1] = (last[0], max(last[1], current[1]))
             else:
                 merged.append(current)
 
         return merged
 
-    def _detect_ads_in_fragments(self, fragments: List[Dict]) -> List[tuple]:
-        """Обнаруживает рекламные фрагменты и возвращает временные регионы."""
-        ad_regions = []
-
-        for frag in fragments:
-            is_ad, confidence = detect_ad(frag['sentence'], self.ad_model)
-            if is_ad:
-                logging.debug(f"Обнаружена реклама: '{frag['sentence']}' (уверенность: {confidence:.3f})")
-                ad_regions.append((frag['start'], frag['end']))
-
-        return self._merge_overlapping_regions(ad_regions)
-
-    def _detect_cross_segment_ads(self, combined_audio_file: str, prev_duration: float) -> Tuple[
-        List[tuple], List[tuple]]:
-        """Обнаруживает рекламу на стыке сегментов."""
-        if not os.path.exists(combined_audio_file):
-            logging.error(f"Файл {combined_audio_file} не существует для анализа стыка")
-            return [], []
-
+    def _save_processed_segment(self, input_file: str, audio_file: str, audio: AudioSegment, output_file: str) -> bool:
+        """Сохраняет обработанный сегмент с проверками"""
         try:
-            # Транскрибируем объединенное аудио
-            transcriptions = transcribe_audio(combined_audio_file, self.speech_model)
-            fragments = self._combine_fragments(transcriptions)
+            # Экспортируем обработанное аудио
+            audio.export(audio_file, format="wav")
+            output_dir = Path(output_file).parent
+            ensure_dir_exists(str(output_dir))
 
-            prev_end_ad_regions = []
-            next_start_ad_regions = []
+            # Проверяем, что у нас есть и видео и аудио дорожки
+            probe_cmd = [
+                'ffprobe', '-v', 'error', '-select_streams', 'v:0',
+                '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', input_file
+            ]
 
-            # Ищем фрагменты, пересекающие границу сегментов
-            for frag in fragments:
-                if frag['start'] < prev_duration and frag['end'] > prev_duration:
-                    is_ad, confidence = detect_ad(frag['sentence'], self.ad_model)
-                    if is_ad:
-                        logging.debug(
-                            f"Реклама на стыке сегментов: '{frag['sentence']}' (уверенность: {confidence:.3f})")
-                        # Часть, относящаяся к предыдущему сегменту
-                        prev_end_ad_regions.append((frag['start'], prev_duration))
-                        # Часть, относящаяся к следующему сегменту
-                        next_start_ad_regions.append((0, frag['end'] - prev_duration))
+            try:
+                result = subprocess.run(probe_cmd, capture_output=True, text=True, check=True)
+                has_video = 'video' in result.stdout
+            except:
+                has_video = False
 
-            safe_delete_file(combined_audio_file)
-            return prev_end_ad_regions, next_start_ad_regions
+            if has_video:
+                # Есть видео - объединяем с обработанным аудио
+                command = [
+                    'ffmpeg', '-y', '-loglevel', 'error',
+                    '-i', input_file,  # Исходное видео
+                    '-i', audio_file,  # Обработанное аудио
+                    '-c:v', 'copy',  # Копируем видео без перекодирования
+                    '-c:a', 'aac', '-b:a', '128k',  # Кодируем аудио
+                    '-map', '0:v:0',  # Видео из первого файла
+                    '-map', '1:a:0',  # Аудио из второго файла
+                    '-shortest',  # Обрезаем до короткой дорожки
+                    '-avoid_negative_ts', 'make_zero',
+                    output_file
+                ]
+            else:
+                # Только аудио - просто копируем обработанный файл
+                command = [
+                    'ffmpeg', '-y', '-loglevel', 'error',
+                    '-i', audio_file,
+                    '-c:a', 'aac', '-b:a', '128k',
+                    output_file
+                ]
 
+            subprocess.run(command, check=True, capture_output=True)
+            logging.debug(f"Сегмент успешно сохранен: {output_file}")
+
+            # Очищаем временные файлы
+            safe_delete_file(audio_file)
+            return True
+
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Ошибка FFmpeg при сохранении {output_file}: {e}")
+            return False
         except Exception as e:
-            logging.error(f"Ошибка при анализе стыка сегментов: {e}")
-            safe_delete_file(combined_audio_file)
-            return [], []
+            logging.error(f"Неожиданная ошибка при сохранении {output_file}: {e}")
+            return False
 
     def process_ts_segment(self, input_file: str, output_file: str, segment_index: int) -> bool:
-        """Обрабатывает TS сегмент с обнаружением и удалением рекламы."""
-        logging.debug(f"\n{'=' * 50}")
+        """
+        Обрабатывает TS сегмент с устойчивостью к коротким/тихим сегментам
+        """
         logging.debug(f"Обработка сегмента {segment_index}: {input_file}")
 
         if not os.path.exists(input_file):
-            logging.error(f"Входной файл {input_file} не существует")
+            logging.error(f"Входной файл не существует: {input_file}")
             return False
 
         try:
-            # Извлекаем аудио из TS сегмента
-            current_audio_file = extract_audio_from_ts(input_file)
-            if current_audio_file is None or not os.path.exists(current_audio_file):
-                logging.error(f"Не удалось извлечь аудио из {input_file}")
-                return False
+            # Извлекаем аудио
+            audio_file = extract_audio_from_ts(input_file)
+            if not audio_file or not os.path.exists(audio_file):
+                logging.info(f"Нет аудио в сегменте {segment_index}, копируем как есть")
+                shutil.copy2(input_file, output_file)
+                return True
 
-            current_audio = AudioSegment.from_wav(current_audio_file)
-            current_duration = len(current_audio) / 1000
+            # Проверяем качество аудио
+            is_problematic, reason = self._is_audio_too_short_or_silent(audio_file)
 
-            logging.debug(f"Извлечено аудио длительностью {current_duration:.2f}s")
+            if is_problematic:
+                logging.info(f"Сегмент {segment_index} пропущен ({reason}), копируем без изменений")
+                shutil.copy2(input_file, output_file)
+                safe_delete_file(audio_file)
+                return True
 
-            # Если это первый сегмент, обрабатываем его отдельно
-            if self.prev_segment_data is None:
-                logging.debug("Обработка первого сегмента")
+            # Загружаем аудио
+            audio = AudioSegment.from_wav(audio_file)
 
-                # Транскрибируем текущий сегмент
-                current_transcriptions = transcribe_audio(current_audio_file, self.speech_model)
-                current_fragments = self._combine_fragments(current_transcriptions)
+            # Безопасная транскрипция
+            transcriptions = self._safe_transcribe_audio(audio_file)
 
-                # Ищем рекламу в текущем сегменте
-                ad_regions = self._detect_ads_in_fragments(current_fragments)
+            if not transcriptions:
+                logging.info(f"Нет распознанной речи в сегменте {segment_index}, копируем как есть")
+                shutil.copy2(input_file, output_file)
+                safe_delete_file(audio_file)
+                return True
 
-                # Обрабатываем аудио (заменяем рекламу на писк)
-                processed_audio = current_audio
-                for start, end in ad_regions:
-                    logging.debug(f"Заменяем рекламу в сегменте {segment_index}: {start:.2f}-{end:.2f}s")
-                    processed_audio = replace_audio_segment(processed_audio, start, end)
+            # Анализируем фрагменты
+            fragments = self._combine_fragments_robust(transcriptions)
 
-                # Сохраняем данные для следующей итерации
-                self.prev_segment_data = {
-                    'audio': processed_audio,
-                    'file': current_audio_file,
-                    'index': segment_index,
-                    'input': input_file,
-                    'fragments': current_fragments
-                }
+            if not fragments:
+                logging.info(f"Нет значимых фрагментов в сегменте {segment_index}")
+                shutil.copy2(input_file, output_file)
+                safe_delete_file(audio_file)
+                return True
 
-                # Сохраняем обработанный сегмент
-                temp_audio_file = f"temp_audio_{segment_index}.wav"
-                if self._save_processed_segment(input_file, temp_audio_file, processed_audio, output_file):
-                    logging.debug(f"Первый сегмент {segment_index} успешно обработан")
-                    return True
-                else:
-                    logging.error(f"Не удалось сохранить первый сегмент {segment_index}")
-                    return False
-
-            # Обрабатываем не первый сегмент с учетом предыдущего
-            logging.debug(f"Обработка сегмента {segment_index} с учетом предыдущего")
-
-            prev_audio = self.prev_segment_data['audio']
-            prev_audio_file = self.prev_segment_data['file']
-            prev_index = self.prev_segment_data['index']
-            prev_input = self.prev_segment_data['input']
-            prev_duration = len(prev_audio) / 1000
-
-            # Создаем объединенное аудио для анализа стыка
-            combined_audio = prev_audio + current_audio
-            combined_audio_file = f"temp_combined_{prev_index}_{segment_index}.wav"
-            combined_audio.export(combined_audio_file, format="wav")
-
-            if not os.path.exists(combined_audio_file):
-                logging.error(f"Не удалось создать временный файл {combined_audio_file}")
-                return False
-
-            # Транскрибируем текущий сегмент
-            current_transcriptions = transcribe_audio(current_audio_file, self.speech_model)
-            current_fragments = self._combine_fragments(current_transcriptions)
-
-            # Ищем рекламу внутри текущего сегмента
-            current_ad_regions = self._detect_ads_in_fragments(current_fragments)
-
-            # Анализируем стык сегментов на предмет рекламы
-            prev_end_ad_regions, next_start_ad_regions = self._detect_cross_segment_ads(
-                combined_audio_file, prev_duration
+            # Детекция рекламы с контекстом
+            ad_regions, new_context = self._detect_ads_with_context(
+                fragments,
+                self.last_transcription
             )
 
-            # Обрабатываем предыдущий сегмент с учетом рекламы на стыке
-            final_prev_audio = prev_audio
-            for start, end in prev_end_ad_regions:
-                logging.debug(f"Заменяем рекламу на стыке в предыдущем сегменте {prev_index}: {start:.2f}-{end:.2f}s")
-                final_prev_audio = replace_audio_segment(final_prev_audio, start, end)
+            # Обновляем контекст для следующего сегмента
+            self.last_transcription = new_context
 
-            # Обрабатываем текущий сегмент
-            processed_current_audio = current_audio
-
-            # Сначала заменяем рекламу на стыке
-            for start, end in next_start_ad_regions:
-                logging.debug(f"Заменяем рекламу на стыке в текущем сегменте {segment_index}: {start:.2f}-{end:.2f}s")
-                processed_current_audio = replace_audio_segment(processed_current_audio, start, end)
-
-            # Затем заменяем рекламу внутри сегмента
-            for start, end in current_ad_regions:
-                logging.debug(f"Заменяем рекламу внутри сегмента {segment_index}: {start:.2f}-{end:.2f}s")
-                processed_current_audio = replace_audio_segment(processed_current_audio, start, end)
-
-            # Сохраняем предыдущий обработанный сегмент
-            prev_output = str(Path(output_file).parent / f"{prev_index}.ts")
-            temp_prev_audio = f"temp_audio_{prev_index}.wav"
-
-            if self._save_processed_segment(prev_input, temp_prev_audio, final_prev_audio, prev_output):
-                logging.debug(f"Предыдущий сегмент {prev_index} обработан и сохранен: {prev_output}")
-
-                # Обновляем данные для следующей итерации
-                self.prev_segment_data = {
-                    'audio': processed_current_audio,
-                    'file': current_audio_file,
-                    'index': segment_index,
-                    'input': input_file,
-                    'fragments': current_fragments
-                }
-
-                # Очищаем старый аудио файл
-                safe_delete_file(prev_audio_file)
-
-                return True
+            # Обрабатываем аудио если найдена реклама
+            processed_audio = audio
+            if ad_regions:
+                logging.info(f"Обнаружена реклама в сегменте {segment_index}: {len(ad_regions)} регионов")
+                for start, end in ad_regions:
+                    logging.debug(f"Заменяем рекламу: {start:.2f}-{end:.2f}s")
+                    processed_audio = replace_audio_segment(processed_audio, start, end)
             else:
-                logging.error(f"Не удалось сохранить предыдущий сегмент {prev_index}")
-                return False
+                logging.debug(f"Реклама не обнаружена в сегменте {segment_index}")
+
+            # Сохраняем результат
+            temp_audio = f"temp_processed_{segment_index}.wav"
+            success = self._save_processed_segment(input_file, temp_audio, processed_audio, output_file)
+
+            safe_delete_file(audio_file)
+            return success
 
         except Exception as e:
-            logging.error(f"Ошибка при обработке сегмента {segment_index}: {e}")
-            return False
-
-    def finalize_processing(self, output_file: str) -> None:
-        """Завершает обработку последнего сегмента."""
-        if self.prev_segment_data:
-            buf = self.prev_segment_data
-            temp_audio_file = f"temp_audio_final_{buf['index']}.wav"
-
-            if self._save_processed_segment(buf['input'], temp_audio_file, buf['audio'], output_file):
-                logging.debug(f"Финальный сегмент {buf['index']} обработан и сохранен")
-
-            safe_delete_file(buf['file'])
-            self.prev_segment_data = None
+            logging.error(f"Критическая ошибка при обработке сегмента {segment_index}: {e}")
+            # В случае ошибки копируем оригинал
+            try:
+                shutil.copy2(input_file, output_file)
+                return True
+            except Exception as copy_error:
+                logging.error(f"Не удалось скопировать оригинал: {copy_error}")
+                return False

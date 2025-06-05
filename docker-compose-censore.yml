@@ -21,6 +21,24 @@ services:
     networks:
       - streamlive-network
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: streamlive-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_LISTEN_PORT: 80
+    ports:
+      - "5050:80"  # Исправлено: мапим 5050 на 80 (внутренний порт pgAdmin)
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy  # Добавлено ожидание готовности PostgreSQL
+    networks:
+      - streamlive-network
+
+
+
   rtmp:
     image: tiangolo/nginx-rtmp
     container_name: streamlive-rtmp

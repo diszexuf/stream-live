@@ -7,6 +7,22 @@ import numpy as np
 from pydub import AudioSegment
 
 
+def is_audio_silent(audio_file: str, silence_threshold: float = -50, min_duration: float = 0.1) -> bool:
+    try:
+        command = [
+            'ffmpeg',
+            '-i', audio_file,
+            '-af', f'silencedetect=n={silence_threshold}dB:d={min_duration}',
+            '-f', 'null', '-'
+        ]
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        output = result.stderr
+        return "silence_end" not in output
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Ошибка при проверке тишины: {e.stderr}")
+        return True
+
+
 def extract_audio_from_ts(ts_file: str) -> str:
     temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
     temp_audio_path = temp_audio.name
