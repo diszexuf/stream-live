@@ -1,184 +1,128 @@
 from pathlib import Path
-from AdRecognitionModel import AdRecognitionModel
-from SpeechRecognitionModel import SpeechRecognitionModel
+from ad_recognition_model import AdRecognitionModel
 from segment_processor import SegmentProcessor
-import m3u8
-import shutil
+from ad_filter_handler import AdFilterHandler
 import logging
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 import time
-import os
+from speech_recognition_model import SpeechRecognitionModel
 
-class AdFilterHandler(FileSystemEventHandler):
-    def __init__(self, stream_key, speech_model, ad_model):
-        self.stream_key = stream_key
-        self.input_path = Path(f"/app/hls/input/{stream_key}")
-        self.output_path = Path(f"/app/hls/output/{stream_key}")
-        self.processor = SegmentProcessor(speech_model.model, ad_model)
-        self.processed_segments = set()
 
-        # Создаём output директорию и поддиректорию для сегментов
-        self.output_path.mkdir(parents=True, exist_ok=True)
-        self.segments_dir = self.output_path / "processed_segments"
-        self.segments_dir.mkdir(exist_ok=True)
+class StreamManager:
+    def __init__(self, speech_model, ad_model):
+        self.speech_model = speech_model
+        self.ad_model = ad_model
+        self.active_streams = {}
+        self.observers = {}
 
-        # Инициализируем плейлист
-        self.playlist_path = self.output_path / "processed_playlist.m3u8"
-        self._initialize_playlist()
-
-        logging.info(f"Инициализирован обработчик для stream_key: {stream_key}")
-
-    def _initialize_playlist(self):
-        """Инициализирует новый или загружает существующий плейлист."""
-        if not self.playlist_path.exists():
-            new_playlist = m3u8.M3U8()
-            new_playlist.version = 3
-            new_playlist.target_duration = 10  # Настройте по вашим данным
-            new_playlist.media_sequence = 0
-            with open(self.playlist_path, "w") as f:
-                f.write(new_playlist.dumps())
-        else:
-            with open(self.playlist_path, "r") as f:
-                self.current_playlist = m3u8.load(f.read())
-
-    def _update_playlist(self, segment_path, duration):
-        """Обновляет плейлист новым сегментом."""
-        with open(self.playlist_path, "r") as f:
-            current_playlist = m3u8.load(f.read())
-
-        rel_path = f"processed_segments/{Path(segment_path).name}"
-        new_segment = m3u8.model.Segment(uri=rel_path, duration=duration)
-        current_playlist.segments.append(new_segment)
-        current_playlist.target_duration = max(current_playlist.target_duration, duration)
-
-        with open(self.playlist_path, "w") as f:
-            f.write(current_playlist.dumps())
-        logging.info(f"Обновлён плейлист: добавлен сегмент {rel_path}")
-
-    def on_created(self, event):
-        """Обрабатывает создание нового файла в input директории."""
-        if event.is_directory or not event.src_path.endswith('.ts'):
+    def start_stream_monitoring(self, stream_key):
+        """Запускает мониторинг конкретного стрима в отдельном потоке"""
+        if stream_key in self.active_streams:
+            logging.warning(f"Стрим {stream_key} уже мониторится")
             return
 
-        input_ts = Path(event.src_path)
-        output_ts = self.segments_dir / input_ts.name
-        segment_idx = int(input_ts.name.split('.')[0]) if input_ts.name[0].isdigit() else 0
+        input_path = Path(f"./hls_data/input/{stream_key}")
+        if not input_path.exists():
+            logging.info(f"Ожидаем создания директории {input_path}")
+            return False
 
-        logging.info(f"Обнаружен новый сегмент: {input_ts} -> {output_ts}")
-
-        # Обрабатываем сегмент
         try:
-            processed = self.processor.process_ts_segment(str(input_ts), str(output_ts), segment_idx)
-            if processed:
-                self.processed_segments.add(segment_idx - 1 if segment_idx > 0 else segment_idx)
-                shutil.copy2(input_ts, output_ts)
-                self._update_playlist(output_ts, 3)  # Предполагаемая длительность 3 секунды
-                logging.info(f"Сегмент {input_ts.name} обработан и скопирован в {output_ts}")
-            else:
-                logging.warning(f"Сегмент {input_ts.name} содержит рекламу и пропущен")
+            event_handler = AdFilterHandler(stream_key, self.speech_model, self.ad_model)
+            event_handler.processor = SegmentProcessor(self.speech_model.model, self.ad_model)
+
+            observer = Observer()
+            observer.schedule(event_handler, str(input_path), recursive=False)
+            observer.start()
+
+            self.active_streams[stream_key] = event_handler
+            self.observers[stream_key] = observer
+
+            logging.info(f"Запущен мониторинг стрима: {stream_key}")
+            return True
+
         except Exception as e:
-            logging.error(f"Ошибка при обработке сегмента {input_ts}: {e}")
+            logging.error(f"Ошибка запуска мониторинга {stream_key}: {e}")
+            return False
 
-        # Финализация последнего сегмента (если это последний)
-        if segment_idx == len(os.listdir(self.input_path)) - 1:
-            self.processor.finalize_processing(str(output_ts))
+    def stop_stream_monitoring(self, stream_key):
+        """Останавливает мониторинг стрима"""
+        if stream_key in self.observers:
+            self.observers[stream_key].stop()
+            self.observers[stream_key].join()
+            del self.observers[stream_key]
 
-    def on_modified(self, event):
-        """Обрабатывает изменения (например, плейлиста)."""
-        if event.src_path.endswith('.m3u8'):
-            logging.info(f"Обнаружено изменение плейлиста: {event.src_path}")
+        if stream_key in self.active_streams:
+            self.active_streams[stream_key].on_stop()
+            del self.active_streams[stream_key]
 
-def monitor_stream(stream_key, speech_model, ad_model):
-    """Мониторит директорию input для заданного stream_key."""
-    input_path = Path(f"/app/hls/input/{stream_key}")
-    if not input_path.exists():
-        logging.info(f"Директория {input_path} не существует, ожидаем её создания...")
-        while not input_path.exists():
-            time.sleep(1)
+        logging.info(f"Остановлен мониторинг стрима: {stream_key}")
 
-    event_handler = AdFilterHandler(stream_key, speech_model, ad_model)
-    observer = Observer()
-    observer.schedule(event_handler, str(input_path), recursive=False)
-    observer.start()
+    def discover_and_monitor_streams(self):
+        """Непрерывно ищет новые стримы и запускает их мониторинг"""
+        input_base_path = Path("./hls_data/input")
+        input_base_path.mkdir(parents=True, exist_ok=True)
 
-    logging.info(f"Начало мониторинга директории: {input_path}")
-    try:
         while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        observer.stop()
-    observer.join()
+            try:
+                current_streams = set()
 
-def discover_streams(speech_model, ad_model):
-    """Обнаруживает все stream_key в input и запускает мониторинг."""
-    input_base_path = Path("/app/hls/input")
-    input_base_path.mkdir(parents=True, exist_ok=True)
+                if input_base_path.exists():
+                    for item in input_base_path.iterdir():
+                        if item.is_dir():
+                            current_streams.add(item.name)
 
-    while True:
-        for stream_key in os.listdir(input_base_path):
-            stream_path = input_base_path / stream_key
-            if stream_path.is_dir():
-                logging.info(f"Обнаружен stream_key: {stream_key}")
-                monitor_stream(stream_key, speech_model, ad_model)
-        time.sleep(5)
+                for stream_key in current_streams:
+                    if stream_key not in self.active_streams:
+                        logging.info(f"Обнаружен новый стрим: {stream_key}")
+                        self.start_stream_monitoring(stream_key)
 
-def process_hls_playlist(input_playlist: Path, output_dir: Path,
-                         speech_model: SpeechRecognitionModel, ad_model: AdRecognitionModel) -> Path:
-    """
-    Обрабатывает HLS-плейлист с учетом контекста между сегментами
-    """
-    # Инициализация обработчика сегментов
-    processor = SegmentProcessor(speech_model.model, ad_model)
+                removed_streams = set(self.active_streams.keys()) - current_streams
+                for stream_key in removed_streams:
+                    logging.info(f"Стрим удален: {stream_key}")
+                    self.stop_stream_monitoring(stream_key)
 
-    playlist = m3u8.load(str(input_playlist))
-    output_dir.mkdir(parents=True, exist_ok=True)
-    segments_dir = output_dir / "processed_segments"
-    segments_dir.mkdir(exist_ok=True)
+            except Exception as e:
+                logging.error(f"Ошибка при сканировании стримов: {e}")
 
-    # Создаем новый плейлист
-    new_playlist = m3u8.M3U8()
-    new_playlist.version = playlist.version
-    new_playlist.target_duration = playlist.target_duration
-    new_playlist.media_sequence = playlist.media_sequence
+            time.sleep(5)
 
-    # Список для отслеживания обработанных сегментов
-    processed_segments = set()
+    def shutdown(self):
+        """Корректное завершение работы всех стримов"""
+        for stream_key in list(self.active_streams.keys()):
+            self.stop_stream_monitoring(stream_key)
 
-    # Обрабатываем каждый сегмент
-    for idx, segment in enumerate(playlist.segments):
-        input_ts = input_playlist.parent / segment.uri
-        output_ts = segments_dir / Path(segment.uri).name
-
-        logging.debug(f"Обработка сегмента {idx}: {input_ts} -> {output_ts}")
-
-        # Пытаемся обработать текущий и следующий сегмент
-        processed = processor.process_ts_segment(str(input_ts), str(output_ts), idx)
 
 def main():
-    # Настройка логирования
-    logging.basicConfig(
-        level=logging.ERROR,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler('/app/processing.log', encoding='utf-8'),
-            logging.StreamHandler()
-        ]
-    )
+    try:
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(name)s - %(funcName)s - %(message)s',
+            handlers=[logging.StreamHandler()]
+        )
 
-    # Пути к моделям
-    speech_model_path = "/models/vosk-model-small-ru-0.22"
-    ad_model_path = "/models/ad_recognizer"
+        speech_model_path = "models/other/vosk-model-ru-0.42"
+        ad_model_path = "models/other/best-model"
+        # speech_model_path = "models/vosk-model-small-ru-0.22"
+        # ad_model_path = "models/ad_recognizer"
 
-    logging.debug("Начало обработки HLS в реальном времени")
+        logging.debug("Инициализация моделей...")
+        speech_model = SpeechRecognitionModel(speech_model_path)
+        ad_model = AdRecognitionModel(ad_model_path)
+        logging.debug("Модели успешно загружены")
 
-    # Инициализация моделей
-    logging.debug("Инициализация моделей...")
-    speech_model = SpeechRecognitionModel(speech_model_path)
-    ad_model = AdRecognitionModel(ad_model_path)
+        stream_manager = StreamManager(speech_model, ad_model)
 
-    # Запуск мониторинга всех стримов
-    discover_streams(speech_model, ad_model)
+        try:
+            stream_manager.discover_and_monitor_streams()
+        except KeyboardInterrupt:
+            logging.info("Получен сигнал завершения работы")
+        finally:
+            stream_manager.shutdown()
+
+    except Exception as e:
+        logging.error(f"Критическая ошибка: {e}")
+        raise
+
 
 if __name__ == "__main__":
     main()

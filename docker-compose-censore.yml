@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: streamlive-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: streamlive
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - streamlive-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: streamlive-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_LISTEN_PORT: 80
+    ports:
+      - "5050:80"  # Исправлено: мапим 5050 на 80 (внутренний порт pgAdmin)
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy  # Добавлено ожидание готовности PostgreSQL
+    networks:
+      - streamlive-network
+
+
+
+  rtmp:
+    image: tiangolo/nginx-rtmp
+    container_name: streamlive-rtmp
+    ports:
+      - "1935:1935"
+      - "8088:80"
+    volumes:
+      - ./rtmp/nginx-censor.conf:/etc/nginx/nginx.conf:ro
+      - ./censore_module/hls_data:/var/www/html/hls
+    restart: unless-stopped
+    networks:
+      - streamlive-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/stat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+#  ad-filter:
+#    build:
+#      context: ./censore_module
+#      dockerfile: Dockerfile-python
+#    container_name: streamlive-ad-filter
+#    volumes:
+#      - ./censore_module/models/vosk-model-small-ru-0.22:/app/models/vosk-model-small-ru-0.22:ro
+#      - ./censore_module/models/ad_recognizer:/app/models/ad_recognizer:ro
+#      - ./hls_data:/app/hls
+#    restart: unless-stopped
+#    networks:
+#      - streamlive-network
+#    depends_on:
+#      rtmp:
+#        condition: service_healthy
+
+volumes:
+  postgres_data:
+
+networks:
+  streamlive-network:
+    driver: bridge

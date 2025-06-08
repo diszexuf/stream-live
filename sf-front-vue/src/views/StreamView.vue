@@ -1,161 +1,216 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useStreamStore } from '@/stores/stream'
-import { useUserStore } from '@/stores/user'
-import videojs from 'video.js'
-import 'video.js/dist/video-js.css'
+import {ref, onMounted, onUnmounted, computed, watch} from 'vue';
+import {useRoute, useRouter} from 'vue-router';
+import {useStreamStore} from '@/stores/stream';
+import {useUserStore} from '@/stores/user';
 
-const route = useRoute()
-const router = useRouter()
-const streamStore = useStreamStore()
-const userStore = useUserStore()
+const route = useRoute();
+const router = useRouter();
+const streamStore = useStreamStore();
+const userStore = useUserStore();
 
-const streamId = computed(() => route.params.id)
-const isLoading = ref(true)
-const errorMessage = ref('')
-const player = ref(null)
+const streamId = computed(() => route.params.id);
+const isLoading = ref(true);
+const errorMessage = ref('');
+const player = ref(null);
+const latency = ref(0);
+const isPlayerInitialized = ref(false);
 
-const isAuthenticated = computed(() => userStore.isAuthenticated)
+const isAuthenticated = computed(() => userStore.isAuthenticated);
 const isStreamOwner = computed(() => {
-  if (!userStore.user || !streamStore.currentStream) return false
-  return streamStore.currentStream.userId === userStore.user.id
-})
+  if (!userStore.user || !streamStore.currentStream) return false;
+  return streamStore.currentStream.userId === userStore.user.id;
+});
 
-const showObsInstructions = ref(false)
-
-const isStreamKeyVisible = ref(false)
+const showObsInstructions = ref(false);
+const isStreamKeyVisible = ref(false);
 
 const getHlsUrl = (stream) => {
   if (!stream || !stream.streamKey) return '';
-  
   const url = `http://127.0.0.1:8088/hls/${stream.streamKey}/index.m3u8`;
   return url;
-}
+};
 
 const updateVideoSource = (stream) => {
-  if (!player.value || !stream || !stream.streamKey) return
-  
+  if (!player.value || !stream || !stream.streamKey) return;
+
   const newSource = {
     src: getHlsUrl(stream),
-    type: 'application/x-mpegURL'
+    type: 'application/x-mpegURL',
+  };
+
+  console.log('Обновление источника видео:', newSource);
+
+  player.value.src(newSource);
+  player.value.load();
+  player.value.play().catch(error => {
+    console.warn('Автовоспроизведение невозможно:', error);
+  });
+};
+
+const loadVideoJs = async () => {
+  const videojs = (await import('video.js')).default;
+  const style = document.createElement('link');
+  style.rel = 'stylesheet';
+  style.href = '/node_modules/video.js/dist/video-js.css';
+  document.head.appendChild(style);
+  return videojs;
+};
+
+const checkStreamAvailability = async (hlsUrl) => {
+  try {
+    const response = await fetch(hlsUrl, { method: 'HEAD' });
+    return response.ok;
+  } catch (error) {
+    console.warn('Плейлист недоступен:', error);
+    return false;
+  }
+};
+
+const initPlayer = async () => {
+  if (isPlayerInitialized.value || player.value) {
+    console.log('Плеер уже инициализирован, пропускаем');
+    return;
   }
 
-  player.value.src(newSource)
-  player.value.load()
-  player.value.play().catch(error => {
-    console.warn('Автовоспроизведение невозможно:', error)
-  })
-}
-
-const initPlayer = () => {
   if (!streamStore.currentStream || !streamStore.currentStream.isLive) {
     return;
   }
-  
-  const videoElement = document.getElementById('stream-video')
+
+  const videoElement = document.getElementById('stream-video');
   if (!videoElement) {
     console.error('Элемент video не найден');
     return;
   }
-  
+
   const hlsUrl = getHlsUrl(streamStore.currentStream);
   console.log('Инициализация плеера с URL:', hlsUrl);
-  
-  // Опции для VideoJS
+
+  const isAvailable = await checkStreamAvailability(hlsUrl);
+  if (!isAvailable) {
+    console.log('Стрим недоступен, повторная попытка через 3 секунды...');
+    setTimeout(initPlayer, 3000);
+    return;
+  }
+
+  const videojs = await loadVideoJs();
+
   const options = {
     autoplay: true,
+    muted: true,
     controls: true,
     fluid: true,
     responsive: true,
     liveui: true,
     loadingSpinner: true,
-    errorDisplay: true,
+    errorDisplay: false,
     sources: [{
       src: hlsUrl,
-      type: 'application/x-mpegURL'
-    }]
-  }
-  
-  console.log('Опции плеера:', options);
-  
+      type: 'application/x-mpegURL',
+    }],
+    html5: {
+      hls: {
+        overrideNative: false,
+        withCredentials: false,
+        smoothQualityChange: true,
+        startLevel: -1,
+        capLevelToPlayerSize: true,
+        maxBufferLength: 10,
+        maxMaxBufferLength: 15,
+      },
+    },
+  };
+
+  isPlayerInitialized.value = true; // Устанавливаем флаг
   player.value = videojs(videoElement, options, function onPlayerReady() {
-    console.log('Плеер готов к использованию', this)
-    
-    this.on('error', function() {
+    console.log('Плеер готов к использованию', this);
+
+    let retryCount = 0;
+    const maxRetries = 5;
+
+    this.on('error', function () {
       const error = this.error();
-      console.error('Ошибка воспроизведения видео:', error);
-      
-      if (error && error.code) {
-        console.log('Попытка перезагрузить плеер через 3 секунды...');
+      console.log('Ошибка плеера:', error);
+
+      if (error && error.code === 4) { // MEDIA_ERR_SRC_NOT_SUPPORTED
+        console.log('Формат потока не поддерживается, завершаем попытки');
+        return;
+      }
+
+      if (retryCount < maxRetries) {
+        retryCount++;
+        const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+        console.log(`Попытка ${retryCount} из ${maxRetries} через ${delay} мс...`);
         setTimeout(() => {
           this.load();
-          this.play();
-        }, 3000);
+          this.play().catch(err => console.warn('Ошибка воспроизведения:', err));
+        }, delay);
+      } else {
+        console.log('Превышено максимальное количество попыток');
+        retryCount = 0;
       }
-    })
-    
-    this.on('playing', function() {
-      console.log('Воспроизведение началось')
-    })
-    
-    this.on('waiting', function() {
-      console.log('Буферизация...')
-    })
-  })
-}
+    });
+
+    this.on('playing', function () {
+      console.log('Воспроизведение началось');
+      retryCount = 0;
+      const updateLatency = () => {
+        latency.value = this.liveTracker ? (this.liveTracker.seekableEnd() - this.currentTime()).toFixed(1) : 0;
+      };
+      updateLatency();
+      setInterval(updateLatency, 1000);
+    });
+
+    this.on('waiting', function () {
+      console.log('Буферизация...');
+    });
+  });
+};
 
 const destroyPlayer = () => {
   if (player.value) {
-    player.value.dispose()
-    player.value = null
+    player.value.dispose();
+    player.value = null;
+    isPlayerInitialized.value = false;
   }
-}
+};
 
 const loadStream = async () => {
   if (!streamId.value) {
-    errorMessage.value = 'ID стрима не указан'
-    router.push('/')
-    return
+    errorMessage.value = 'ID стрима не указан';
+    router.push('/');
+    return;
   }
 
-  isLoading.value = true
-  errorMessage.value = ''
+  isLoading.value = true;
+  errorMessage.value = '';
 
   try {
-    console.log(`Загрузка стрима с ID: ${streamId.value}`)
-    
-    if (userStore.isAuthenticated) {
-      console.log('Пользователь авторизован, токен:', userStore.token ? 'установлен' : 'не установлен')
-      
-      if (userStore.token) {
-        const { setAuthToken } = await import('@/api/manual')
-        setAuthToken(userStore.token)
-      }
+    console.log(`Загрузка стрима с ID: ${streamId.value}`);
+
+    if (userStore.isAuthenticated && userStore.token) {
+      const { setAuthToken } = await import('@/api/manual');
+      setAuthToken(userStore.token);
     } else {
-      console.log('Пользователь не авторизован')
+      console.log('Пользователь не авторизован');
     }
-    
-    await streamStore.fetchStreamById(streamId.value)
-    
+
+    await streamStore.fetchStreamById(streamId.value);
+
     if (!streamStore.currentStream) {
-      errorMessage.value = streamStore.error || 'Стрим не найден'
-      console.error('Стрим не найден или произошла ошибка:', streamStore.error)
+      errorMessage.value = streamStore.error || 'Стрим не найден';
+      console.error('Стрим не найден или произошла ошибка:', streamStore.error);
     } else {
-      console.log('Стрим успешно загружен:', streamStore.currentStream)
-      console.log('Stream key:', streamStore.currentStream.streamKey)
-      
-      setTimeout(() => {
-        initPlayer()
-      }, 100)
+      console.log('Стрим успешно загружен:', streamStore.currentStream);
+      console.log('Stream key:', streamStore.currentStream.streamKey);
     }
   } catch (error) {
-    console.error('Ошибка при загрузке стрима:', error)
-    errorMessage.value = error.message || 'Не удалось загрузить стрим'
+    console.error('Ошибка при загрузке стрима:', error);
+    errorMessage.value = error.message || 'Не удалось загрузить стрим';
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
-}
+};
 
 const endStream = async () => {
   if (!confirm('Вы уверены, что хотите завершить стрим?')) return
@@ -168,10 +223,10 @@ const endStream = async () => {
 
   try {
     if (userStore.token) {
-      const { setAuthToken } = await import('@/api/manual')
+      const {setAuthToken} = await import('@/api/manual')
       setAuthToken(userStore.token)
     }
-    
+
     const result = await streamStore.endStream()
     console.log('StreamView.endStream: Результат завершения стрима:', result);
 
@@ -199,29 +254,29 @@ const editStream = () => {
 
 const getTags = (stream) => {
   if (!stream) return [];
-  
+
   if (stream.tags && Array.isArray(stream.tags)) {
     return stream.tags;
   }
-  
+
   return [];
 }
 
 const formatDate = (dateString) => {
   if (!dateString) return 'Нет данных';
-  
+
   if (typeof dateString === 'object') {
     console.log('Date is an object:', dateString);
     return 'Нет данных';
   }
-  
+
   try {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) {
       console.log('Invalid date from string:', dateString);
       return 'Нет данных';
     }
-    
+
     return date.toLocaleString('ru-RU', {
       day: '2-digit',
       month: '2-digit',
@@ -237,14 +292,14 @@ const formatDate = (dateString) => {
 
 const copyStreamKey = () => {
   if (!streamStore.currentStream || !streamStore.currentStream.streamKey) return
-  
+
   navigator.clipboard.writeText(streamStore.currentStream.streamKey)
-    .then(() => {
-      alert('Ключ стрима скопирован в буфер обмена')
-    })
-    .catch(err => {
-      console.error('Ошибка при копировании ключа стрима:', err)
-    })
+      .then(() => {
+        alert('Ключ стрима скопирован в буфер обмена')
+      })
+      .catch(err => {
+        console.error('Ошибка при копировании ключа стрима:', err)
+      })
 }
 
 const toggleStreamKeyVisibility = () => {
@@ -254,39 +309,41 @@ const toggleStreamKeyVisibility = () => {
 const getMaskedStreamKey = (key) => {
   if (!key) return ''
   if (isStreamKeyVisible.value) return key
-  
+
   const visiblePart = 4
   if (key.length <= visiblePart * 2) {
     return '*'.repeat(key.length)
   }
-  
+
   const start = key.substring(0, visiblePart)
   const end = key.substring(key.length - visiblePart)
   const masked = '*'.repeat(key.length - visiblePart * 2)
-  
+
   return `${start}${masked}${end}`
 }
 
-watch(streamId, (newStreamId, oldStreamId) => {
-  if (newStreamId !== oldStreamId) {
-    console.log(`ID стрима изменился с ${oldStreamId} на ${newStreamId}`)
-    destroyPlayer()
-    loadStream()
+watch(() => streamStore.currentStream?.isLive, (isLive) => {
+  if (isLive === undefined) return;
+  console.log('Статус стрима изменился:', isLive);
+  if (isLive) {
+    setTimeout(() => initPlayer(), 1000);
+  } else {
+    destroyPlayer();
   }
-}, { immediate: true })
+});
 
 onMounted(async () => {
-  await loadStream()
-})
+  await loadStream();
+});
 
 onUnmounted(() => {
-  destroyPlayer()
-})
+  destroyPlayer();
+});
+
 </script>
 
 <template>
   <v-container>
-
     <v-row v-if="isLoading">
       <v-col cols="12" class="text-center">
         <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
@@ -313,19 +370,20 @@ onUnmounted(() => {
           <div class="stream-player mb-4">
             <div v-if="streamStore.currentStream.isLive" class="video-container">
               <video
-                id="stream-video"
-                class="video-js vjs-default-skin vjs-big-play-centered"
-                controls
-                preload="auto"
-                width="100%"
-                height="100%"
-                :poster="streamStore.currentStream.thumbnailUrl || ''"
-                data-setup="{}"
+                  id="stream-video"
+                  class="video-js vjs-default-skin vjs-big-play-centered"
+                  controls
+                  preload="auto"
+                  :poster="streamStore.currentStream.thumbnailUrl || ''"
+                  data-setup="{}"
               >
                 <p class="vjs-no-js">
                   Для просмотра видео необходимо включить JavaScript и обновить браузер до поддерживающего HTML5 видео.
                 </p>
               </video>
+              <div class="latency-indicator">
+                Задержка: {{ latency }} секунд
+              </div>
             </div>
             <div v-else class="video-container">
               <div class="video-placeholder d-flex align-center justify-center bg-grey-darken-3">
@@ -342,17 +400,17 @@ onUnmounted(() => {
               <div class="d-flex align-center">
                 {{ streamStore.currentStream.title }}
                 <v-chip
-                  v-if="streamStore.currentStream.isLive"
-                  color="error"
-                  size="small"
-                  class="ml-2"
+                    v-if="streamStore.currentStream.isLive"
+                    color="error"
+                    size="small"
+                    class="ml-2"
                 >
                   <v-icon start size="x-small">mdi-access-point</v-icon>
                   В ЭФИРЕ
                 </v-chip>
               </div>
             </v-card-title>
-            
+
             <v-card-text>
               <div class="d-flex align-center mb-4">
                 <v-avatar size="40" class="mr-2">
@@ -362,44 +420,45 @@ onUnmounted(() => {
                   <div class="text-subtitle-1 font-weight-bold">Пользователь</div>
                   <div class="text-caption">{{ formatDate(streamStore.currentStream.startedAt) }}</div>
                 </div>
-                
+
                 <v-spacer></v-spacer>
-                
+
                 <div class="d-flex align-center">
                   <v-icon color="red" class="mr-1">mdi-eye</v-icon>
                   <span class="text-body-2">{{ streamStore.currentStream.viewerCount }} зрителей</span>
                 </div>
               </div>
-              
+
               <p v-if="streamStore.currentStream.description" class="text-body-1 mb-4">
                 {{ streamStore.currentStream.description }}
               </p>
               <p v-else class="text-body-1 text-grey mb-4">
                 Описание отсутствует
               </p>
-              
+
               <div class="d-flex flex-wrap gap-1 mb-4">
                 <v-chip
-                  v-for="tag in getTags(streamStore.currentStream)"
-                  :key="tag"
-                  size="small"
-                  class="mr-1"
+                    v-for="tag in getTags(streamStore.currentStream)"
+                    :key="tag"
+                    size="small"
+                    class="mr-1"
                 >
                   {{ tag }}
                 </v-chip>
               </div>
-              
+
               <div v-if="isStreamOwner" class="d-flex gap-2">
                 <v-btn class="mr-2" color="primary" @click="editStream">
                   <v-icon start>mdi-pencil</v-icon>
                   Редактировать
                 </v-btn>
-                <v-btn class="mr-2" v-if="streamStore.currentStream.isLive" color="error" @click="endStream" :loading="isLoading">
+                <v-btn class="mr-2" v-if="streamStore.currentStream.isLive" color="error" @click="endStream"
+                       :loading="isLoading">
                   <v-icon start>mdi-stop</v-icon>
                   Завершить стрим
                 </v-btn>
               </div>
-              
+
               <div v-if="isStreamOwner && streamStore.currentStream.streamKey" class="mt-4 pt-4 border-top">
                 <div class="d-flex align-center mb-2">
                   <h3 class="text-subtitle-1 font-weight-bold mr-2">Ключ стрима (RTMP)</h3>
@@ -409,25 +468,25 @@ onUnmounted(() => {
                     </template>
                   </v-tooltip>
                 </div>
-                
+
                 <div class="d-flex align-center">
                   <v-text-field
-                    :value="getMaskedStreamKey(streamStore.currentStream.streamKey)"
-                    readonly
-                    variant="outlined"
-                    density="compact"
-                    hide-details
-                    class="flex-grow-1 mr-2"
-                    :append-icon="isStreamKeyVisible ? 'mdi-eye-off' : 'mdi-eye'"
-                    @click:append="toggleStreamKeyVisibility"
+                      :value="getMaskedStreamKey(streamStore.currentStream.streamKey)"
+                      readonly
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                      class="flex-grow-1 mr-2"
+                      :append-icon="isStreamKeyVisible ? 'mdi-eye-off' : 'mdi-eye'"
+                      @click:append="toggleStreamKeyVisibility"
                   >
                     <template v-slot:prepend>
                       <v-tooltip :text="isStreamKeyVisible ? 'Скрыть ключ' : 'Показать ключ'">
                         <template v-slot:activator="{ props }">
-                          <v-icon 
-                            v-bind="props" 
-                            :color="isStreamKeyVisible ? 'warning' : 'primary'"
-                            @click="toggleStreamKeyVisibility"
+                          <v-icon
+                              v-bind="props"
+                              :color="isStreamKeyVisible ? 'warning' : 'primary'"
+                              @click="toggleStreamKeyVisibility"
                           >
                             {{ isStreamKeyVisible ? 'mdi-lock-open' : 'mdi-lock' }}
                           </v-icon>
@@ -435,57 +494,47 @@ onUnmounted(() => {
                       </v-tooltip>
                     </template>
                   </v-text-field>
-                  <v-btn 
-                    icon="mdi-content-copy" 
-                    variant="text" 
-                    density="compact"
-                    @click="copyStreamKey"
+                  <v-btn
+                      icon="mdi-content-copy"
+                      variant="text"
+                      density="compact"
+                      @click="copyStreamKey"
                   ></v-btn>
                 </div>
-                
+
                 <div class="mt-2 text-caption">
                   RTMP URL: rtmp://127.0.0.1:1935/live
                 </div>
-                
-                <v-btn 
-                  color="primary" 
-                  variant="text" 
-                  class="mt-2 px-0"
-                  @click="showObsInstructions = true"
+
+                <v-btn
+                    color="primary"
+                    variant="text"
+                    class="mt-2 px-0"
+                    @click="showObsInstructions = true"
                 >
                   <v-icon start>mdi-information-outline</v-icon>
                   Инструкция по настройке OBS
                 </v-btn>
-                
+
                 <v-dialog v-model="showObsInstructions" max-width="600px">
-                  <v-card>
+                  <v-card class="p-4">
                     <v-card-title class="text-h5">
                       Настройка OBS для стриминга
                     </v-card-title>
                     <v-card-text>
                       <p class="mb-4">Для начала стриминга через OBS Studio выполните следующие шаги:</p>
-                      
+
                       <ol class="mb-4">
                         <li class="mb-2">Откройте OBS Studio</li>
                         <li class="mb-2">Перейдите в меню <strong>Настройки</strong> → <strong>Вещание</strong></li>
                         <li class="mb-2">Выберите <strong>Сервис</strong>: Custom</li>
-                        <li class="mb-2">В поле <strong>Сервер</strong> введите: <code>rtmp://127.0.0.1:1935/live</code></li>
-                        <li class="mb-2">В поле <strong>Ключ потока</strong> введите: <code>{{ streamStore.currentStream.streamKey }}</code></li>
+                        <li class="mb-2">В поле <strong>Сервер</strong> введите: <code>rtmp://127.0.0.1:1935/live</code>
+                        </li>
+                        <li class="mb-2">В поле <strong>Ключ потока</strong> введите ключ потока</li>
                         <li class="mb-2">Нажмите <strong>OK</strong> для сохранения настроек</li>
                         <li class="mb-2">Нажмите кнопку <strong>Начать трансляцию</strong> в главном окне OBS</li>
                       </ol>
-                      
-                      <p>Через несколько секунд после начала трансляции в OBS, ваш стрим станет доступен для просмотра.</p>
-                      
-                      <div class="mt-4 pa-4 bg-grey-lighten-4 rounded">
-                        <p class="text-subtitle-1 font-weight-bold">Важно!</p>
-                        <p>Убедитесь, что:</p>
-                        <ul>
-                          <li>Docker-контейнер с RTMP-сервером запущен</li>
-                          <li>Порт 1935 доступен и не заблокирован брандмауэром</li>
-                          <li>OBS настроен на правильное разрешение и битрейт (рекомендуется 720p и 2500-3500 Kbps)</li>
-                        </ul>
-                      </div>
+
                     </v-card-text>
                     <v-card-actions>
                       <v-spacer></v-spacer>
@@ -498,7 +547,7 @@ onUnmounted(() => {
               </div>
             </v-card-text>
           </v-card>
-          
+
           <v-card>
             <v-card-title>Рекомендуемые стримы</v-card-title>
             <v-card-text>
@@ -516,35 +565,36 @@ onUnmounted(() => {
 
 <style scoped>
 .video-container {
-  position: relative;
   width: 100%;
-  height: 0;
-  padding-bottom: 56.25%; /* соотношение сторон 16:9 */
+  max-width: 960px; /* Ограничиваем максимальную ширину */
+  margin: 0 auto;
+  aspect-ratio: 16 / 9;
   background-color: #000;
   overflow: hidden;
   border-radius: 8px;
+  position: relative;
 }
 
-.video-container .video-js {
-  position: absolute !important;
-  top: 0;
-  left: 0;
+.video-js {
   width: 100% !important;
   height: 100% !important;
 }
 
-.video-container .vjs-tech {
-  width: 100%;
-  height: 100%;
-}
-
 .video-placeholder {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
   height: 100%;
   background-color: #1e1e1e;
   color: white;
 }
-</style> 
+
+.latency-indicator {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+</style>

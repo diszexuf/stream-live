@@ -1,0 +1,45 @@
+# Используем более легкий базовый образ без CUDA, если GPU не нужен
+FROM python:3.11-slim as builder
+
+WORKDIR /app
+
+# Устанавливаем системные зависимости
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ffmpeg \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Копируем requirements.txt первым для лучшего кэширования слоев
+COPY requirements.txt .
+
+# Создаем отдельный слой для установки зависимостей с кэшированием
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --prefix=/install \
+    torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir --prefix=/install \
+    -r requirements.txt
+
+# Финальный образ
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Копируем установленные пакеты
+COPY --from=builder /install /usr/local
+
+# Устанавливаем только runtime зависимости
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
+
+# Копируем код приложения в конце
+COPY . .
+
+ENV PYTHONPATH=/usr/local/lib/python3.11/site-packages
+
+# Проверки
+RUN python3 -c "import torch; print(f'PyTorch: {torch.__version__}')"
+RUN python3 -c "import numpy; print(f'NumPy: {numpy.__version__}')"
+
+CMD ["python3", "main.py"]
