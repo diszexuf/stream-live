@@ -66,19 +66,16 @@ class StreamManager:
             try:
                 current_streams = set()
 
-                # Сканируем существующие директории
                 if input_base_path.exists():
                     for item in input_base_path.iterdir():
                         if item.is_dir():
                             current_streams.add(item.name)
 
-                # Запускаем мониторинг новых стримов
                 for stream_key in current_streams:
                     if stream_key not in self.active_streams:
                         logging.info(f"Обнаружен новый стрим: {stream_key}")
                         self.start_stream_monitoring(stream_key)
 
-                # Останавливаем мониторинг удаленных стримов
                 removed_streams = set(self.active_streams.keys()) - current_streams
                 for stream_key in removed_streams:
                     logging.info(f"Стрим удален: {stream_key}")
@@ -87,7 +84,7 @@ class StreamManager:
             except Exception as e:
                 logging.error(f"Ошибка при сканировании стримов: {e}")
 
-            time.sleep(5)  # Проверяем каждые 5 секунд
+            time.sleep(5)
 
     def shutdown(self):
         """Корректное завершение работы всех стримов"""
@@ -98,24 +95,24 @@ class StreamManager:
 def main():
     try:
         logging.basicConfig(
-            level=logging.DEBUG,
-            format='%(asctime)s - %(levelname)s - %(message)s',
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(name)s - %(funcName)s - %(message)s',
             handlers=[logging.StreamHandler()]
         )
 
-        speech_model_path = "models/vosk-model-small-ru-0.22"
-        ad_model_path = "models/ad_recognizer"
+        speech_model_path = "models/other/vosk-model-ru-0.42"
+        ad_model_path = "models/other/best-model"
+        # speech_model_path = "models/vosk-model-small-ru-0.22"
+        # ad_model_path = "models/ad_recognizer"
 
         logging.debug("Инициализация моделей...")
         speech_model = SpeechRecognitionModel(speech_model_path)
         ad_model = AdRecognitionModel(ad_model_path)
         logging.debug("Модели успешно загружены")
 
-        # Создаем менеджер стримов
         stream_manager = StreamManager(speech_model, ad_model)
 
         try:
-            # Запускаем обнаружение стримов в основном потоке
             stream_manager.discover_and_monitor_streams()
         except KeyboardInterrupt:
             logging.info("Получен сигнал завершения работы")

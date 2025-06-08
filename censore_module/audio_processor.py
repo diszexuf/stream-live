@@ -7,22 +7,6 @@ import numpy as np
 from pydub import AudioSegment
 
 
-def is_audio_silent(audio_file: str, silence_threshold: float = -50, min_duration: float = 0.1) -> bool:
-    try:
-        command = [
-            'ffmpeg',
-            '-i', audio_file,
-            '-af', f'silencedetect=n={silence_threshold}dB:d={min_duration}',
-            '-f', 'null', '-'
-        ]
-        result = subprocess.run(command, check=True, capture_output=True, text=True)
-        output = result.stderr
-        return "silence_end" not in output
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Ошибка при проверке тишины: {e.stderr}")
-        return True
-
-
 def extract_audio_from_ts(ts_file: str) -> str:
     temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
     temp_audio_path = temp_audio.name
@@ -30,18 +14,23 @@ def extract_audio_from_ts(ts_file: str) -> str:
 
     try:
         command = [
-            'ffmpeg',
-            '-y',
-            '-i', ts_file,
-            '-vn',
-            '-acodec', 'pcm_s16le',
-            '-ar', '44100',
-            '-ac', '1',
-            '-t', '3',
+            'ffmpeg', '-y', '-i', ts_file, '-vn',
+            '-af', 'loudnorm=I=-15:TP=-9:LRA=11',
+            '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1',
             temp_audio_path
         ]
         subprocess.run(command, check=True, capture_output=True)
+
+        audio = AudioSegment.from_wav(temp_audio_path)
+
+        logging.debug(f"Извлечено аудио из {ts_file}: громкость {audio.dBFS:.1f}dB, "
+                      f"максимум {audio.max_dBFS:.1f}dB, длительность {len(audio) / 1000.0:.2f}s")
+        if audio.max_dBFS > -9.0:
+            logging.warning(f"Пики громкости в {ts_file} превышают -9 дБ: {audio.max_dBFS:.1f}dB")
+        if not (2.7 <= len(audio) / 1000.0 <= 3.3):
+            logging.warning(f"Длительность аудио в {ts_file} не около 3s: {len(audio) / 1000.0:.2f}s")
         return temp_audio_path
+
     except subprocess.CalledProcessError as e:
         logging.error(f"Ошибка при извлечении аудио: {e.stderr.decode()}")
         try:
@@ -52,7 +41,7 @@ def extract_audio_from_ts(ts_file: str) -> str:
 
 
 def generate_beep(duration_ms: int, frequency: int = 1000, volume: float = 0.2) -> AudioSegment:
-    sample_rate = 44100
+    sample_rate = 16000
     t = np.linspace(0, duration_ms / 1000, int(duration_ms * sample_rate / 1000))
     beep_data = np.sin(2 * np.pi * frequency * t) * volume
     beep_data = (beep_data * 32767).astype(np.int16)
@@ -79,19 +68,6 @@ def generate_beep(duration_ms: int, frequency: int = 1000, volume: float = 0.2) 
 
 def replace_audio_segment(audio: AudioSegment, start_time: float, end_time: float,
                           beep_frequency: int = 1000, beep_volume: float = 0.2) -> AudioSegment:
-    """
-    Заменяет часть аудио на писк
-    
-    Args:
-        audio: исходное аудио
-        start_time: время начала в секундах
-        end_time: время конца в секундах
-        beep_frequency: частота писка в Гц
-        beep_volume: громкость писка (0.0 - 1.0)
-        
-    Returns:
-        обработанное аудио
-    """
     audio_duration_ms = len(audio)
     start_time_ms = int(start_time * 1000)
     end_time_ms = int(end_time * 1000)
@@ -105,8 +81,8 @@ def replace_audio_segment(audio: AudioSegment, start_time: float, end_time: floa
     result = audio[:start_time_ms] + beep + audio[end_time_ms:]
 
     if abs(len(result) - audio_duration_ms) > 1:
-        print(f"ВНИМАНИЕ: Длительность аудио изменилась! Было {audio_duration_ms}ms, стало {len(result)}ms")
+        logging.warning(f"Длительность аудио изменилась! Было {audio_duration_ms}ms, стало {len(result)}ms")
     else:
-        print(f"Длительность аудио сохранена: {audio_duration_ms}ms")
+        logging.debug(f"Длительность аудио сохранена: {audio_duration_ms}ms")
 
     return result

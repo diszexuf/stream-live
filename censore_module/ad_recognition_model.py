@@ -9,6 +9,7 @@ class AdRecognitionModel:
         try:
             self.tokenizer = AutoTokenizer.from_pretrained(model_path)
             self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
+            logging.info(f"Loaded AD model")
         except Exception as e:
             logging.error(f"Ошибка загрузки модели Transformers из {model_path}: {e}")
             raise
