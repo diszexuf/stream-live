@@ -39,11 +39,9 @@ const startStream = async () => {
       const userStreams = streamStore.currentUserStreams
       if (userStreams && userStreams.length > 0) {
         const newStream = userStreams[userStreams.length - 1]
-        console.log('Стрим успешно создан:', newStream)
-        
+
         if (newStream && newStream.id) {
-          console.log(`Переход на страницу стрима с ID: ${newStream.id}`)
-          
+
           setTimeout(async () => {
             try {
               await router.push(`/stream/${newStream.id}`)

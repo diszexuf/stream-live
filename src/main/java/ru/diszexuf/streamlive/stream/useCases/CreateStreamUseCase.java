@@ -35,7 +35,6 @@ public class CreateStreamUseCase {
         .description(streamRequestDto.getDescription())
         .thumbnailUrl(streamRequestDto.getThumbnailUrl() != null ?
             streamRequestDto.getThumbnailUrl() : "https://picsum.photos/200/300")
-        .streamKey(user.getStreamKey())
         .startedAt(LocalDateTime.now())
         .tags(streamRequestDto.getTags() != null ?
             new HashSet<>(streamRequestDto.getTags()) : new HashSet<>())
@@ -43,8 +42,7 @@ public class CreateStreamUseCase {
         .viewersCount(0)
         .build();
 
-    StreamResponseDto dto = mapToDto(streamRepository.save(stream));
-    return dto;
+      return mapToDto(streamRepository.save(stream));
   }
 
   public StreamResponseDto mapToDto(Stream stream) {
@@ -54,7 +52,7 @@ public class CreateStreamUseCase {
         .title(stream.getTitle())
         .description(stream.getDescription())
         .thumbnailUrl(stream.getThumbnailUrl())
-        .streamKey(stream.getStreamKey())
+        .streamKey(stream.getUser().getStreamKey())
         .tags(stream.getTags().stream().toList())
         .isLive(stream.getIsLive())
         .viewerCount(stream.getViewersCount());

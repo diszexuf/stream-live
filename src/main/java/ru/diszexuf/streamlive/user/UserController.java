@@ -21,49 +21,60 @@ import java.util.UUID;
 @CrossOrigin
 public class UserController implements UsersApi {
 
-  private final GetAllUsersUseCase getAllUsersUseCase;
-  private final GetUserByIdUseCase getUserByIdUseCase;
-  private final GetUserByUsernameUseCase getUserByUsernameUseCase;
-  private final UpdateUserUseCase updateUserUseCase;
-  private final DeleteUserUseCase deleteUserUseCase;
-  private final GetCurrentUserUseCase getCurrentUserUseCase;
-  private final ResetStreamKeyUseCase resetStreamKeyUseCase;
+    private final GetAllUsersUseCase getAllUsersUseCase;
+    private final GetUserByIdUseCase getUserByIdUseCase;
+    private final GetUserByUsernameUseCase getUserByUsernameUseCase;
+    private final UpdateUserUseCase updateUserUseCase;
+    private final DeleteUserUseCase deleteUserUseCase;
+    private final GetCurrentUserUseCase getCurrentUserUseCase;
+    private final ResetStreamKeyUseCase resetStreamKeyUseCase;
+    private final CheckEmailAvailabilityUseCase checkEmailAvailabilityUseCase;
+    private final CheckUsernameAvailabilityUseCase checkUsernameAvailabilityUseCase;
 
-  @Override
-  public ResponseEntity<RegenerateCurrentUserStreamKey200ResponseDto> regenerateCurrentUserStreamKey() {
-    return ResponseEntity.ok(resetStreamKeyUseCase.execute());
-  }
+    @Override
+    public ResponseEntity<Boolean> checkEmailAvailability(String email) {
+        return ResponseEntity.ok(!checkEmailAvailabilityUseCase.execute(email));
+    }
 
-  @Override
-  public ResponseEntity<Void> deleteUser(UUID id) {
-    deleteUserUseCase.execute(id);
-    return ResponseEntity.noContent().build();
-  }
+    @Override
+    public ResponseEntity<Boolean> checkUsernameAvailability(String username) {
+        return ResponseEntity.ok(!checkUsernameAvailabilityUseCase.execute(username));
+    }
 
-  @Override
-  public ResponseEntity<List<UserResponseDto>> getAllUsers() {
-    return ResponseEntity.ok(getAllUsersUseCase.execute());
-  }
+    @Override
+    public ResponseEntity<RegenerateCurrentUserStreamKey200ResponseDto> regenerateCurrentUserStreamKey() {
+        return ResponseEntity.ok(resetStreamKeyUseCase.execute());
+    }
 
-  @Override
-  public ResponseEntity<UserResponseDto> getCurrentUserProfile() {
-    return ResponseEntity.ok(getCurrentUserUseCase.execute());
-  }
+    @Override
+    public ResponseEntity<Void> deleteUser(UUID id) {
+        deleteUserUseCase.execute(id);
+        return ResponseEntity.noContent().build();
+    }
 
-  @Override
-  public ResponseEntity<UserResponseDto> getUserById(UUID id) {
-    return ResponseEntity.ok(getUserByIdUseCase.execute(id));
-  }
+    @Override
+    public ResponseEntity<List<UserResponseDto>> getAllUsers() {
+        return ResponseEntity.ok(getAllUsersUseCase.execute());
+    }
 
-  @Override
-  public ResponseEntity<UserResponseDto> getUserByUsername(String userUsername) {
-    return ResponseEntity.ok(getUserByUsernameUseCase.execute(userUsername));
-  }
+    @Override
+    public ResponseEntity<UserResponseDto> getCurrentUserProfile() {
+        return ResponseEntity.ok(getCurrentUserUseCase.execute());
+    }
 
-  @Override
-  public ResponseEntity<Void> updateUser(UserUpdateRequestDto userUpdateRequestDto) {
-    updateUserUseCase.execute(userUpdateRequestDto);
-    return ResponseEntity.ok().build();
-  }
+    @Override
+    public ResponseEntity<UserResponseDto> getUserById(UUID id) {
+        return ResponseEntity.ok(getUserByIdUseCase.execute(id));
+    }
+
+    @Override
+    public ResponseEntity<UserResponseDto> getUserByUsername(String userUsername) {
+        return ResponseEntity.ok(getUserByUsernameUseCase.execute(userUsername));
+    }
+
+    @Override
+    public ResponseEntity<UserResponseDto> updateUser(UserUpdateRequestDto userUpdateRequestDto) {
+        return ResponseEntity.ok(updateUserUseCase.execute(userUpdateRequestDto));
+    }
 
 }

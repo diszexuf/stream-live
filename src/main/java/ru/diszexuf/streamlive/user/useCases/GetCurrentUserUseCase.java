@@ -20,8 +20,7 @@ public class GetCurrentUserUseCase {
     String username = SecurityContextHolder.getContext().getAuthentication().getName();
     User user = userRepository.findByUsername(username)
         .orElseThrow(() -> new NoSuchElementException("User not found"));
-    UserResponseDto dto = this.mapToDto(user);
-    return dto;
+      return this.mapToDto(user);
   }
 
   public UserResponseDto mapToDto(User user) {

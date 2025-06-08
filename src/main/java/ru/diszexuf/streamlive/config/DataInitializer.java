@@ -89,7 +89,6 @@ public class DataInitializer implements CommandLineRunner {
         .title(title)
         .description(title + "... подробнее в прямом эфире!")
         .thumbnailUrl("https://picsum.photos/200/300 ")
-        .streamKey(user.getStreamKey()) // <-- Берём streamKey из пользователя
         .tags(tags)
         .isLive(isLive)
         .startedAt(startedAt)

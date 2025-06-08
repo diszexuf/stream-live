@@ -28,7 +28,6 @@ const isStreamKeyVisible = ref(false);
 const getHlsUrl = (stream) => {
   if (!stream || !stream.streamKey) return '';
   const url = `http://127.0.0.1:8088/hls/${stream.streamKey}/index.m3u8`;
-  console.log('HLS URL:', url);
   return url;
 };
 
@@ -75,7 +74,6 @@ const initPlayer = async () => {
   }
 
   if (!streamStore.currentStream || !streamStore.currentStream.isLive) {
-    console.log('Не инициализируем плеер: стрим не активен или не загружен', streamStore.currentStream);
     return;
   }
 

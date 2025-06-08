@@ -34,7 +34,6 @@ dependencies {
     implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
     implementation 'jakarta.annotation:jakarta.annotation-api:2.1.0'
     implementation 'org.springframework.boot:spring-boot-starter-security'
-    testImplementation 'org.springframework.security:spring-security-test'
 
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.0'
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
@@ -48,10 +47,6 @@ dependencies {
 
     runtimeOnly 'org.postgresql:postgresql'
     runtimeOnly 'org.springframework.boot:spring-boot-docker-compose'
-
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 sourceSets {
@@ -79,8 +74,9 @@ openApiGenerate {
             skipDefaultInterface : 'true',
             useTags              : 'true',
             useSpringValidation  : 'true',
-            library: 'spring-boot',
-            useJakartaEe: 'true',
+            library              : 'spring-boot',
+            useJakartaEe         : 'true',
+            useNullable          : 'false'
     ]
 }
 

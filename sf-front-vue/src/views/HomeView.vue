@@ -59,7 +59,6 @@ const clearSearch = () => {
 }
 
 const navigateToStream = (streamId) => {
-  console.log("STREAMID", streamId)
   router.push(`/stream/${streamId}`)
 }
 

@@ -1,5 +1,6 @@
 package ru.diszexuf.streamlive.stream.useCases;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ru.diszexuf.streamlive.common.UseCase;
@@ -13,6 +14,7 @@ import java.util.List;
 @UseCase
 @RequiredArgsConstructor
 @Slf4j
+@Transactional
 public class SearchStreamsUseCase {
   private final StreamRepository streamRepository;
 
@@ -32,7 +34,7 @@ public class SearchStreamsUseCase {
         .title(stream.getTitle())
         .description(stream.getDescription())
         .thumbnailUrl(stream.getThumbnailUrl())
-        .streamKey(stream.getStreamKey())
+        .streamKey(stream.getUser().getStreamKey())
         .tags(stream.getTags().stream().toList())
         .isLive(stream.getIsLive())
         .startedAt(stream.getStartedAt().atOffset(ZoneOffset.UTC))

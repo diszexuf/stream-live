@@ -23,49 +23,50 @@ import java.util.List;
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
-  private final JwtAuthenticationFilter jwtFilter;
-  private final AuthenticationProvider authenticationProvider;
-  private final CorsFilter corsFilter;
+    private final JwtAuthenticationFilter jwtFilter;
+    private final AuthenticationProvider authenticationProvider;
+    private final CorsFilter corsFilter;
 
-  @Bean
-  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-    return http
-        .csrf(AbstractHttpConfigurer::disable)
-        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-        .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/api/auth/**").permitAll()
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        return http
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/**").permitAll()
 
-            .requestMatchers("/api/streams").permitAll()
-            .requestMatchers("/api/streams/live").permitAll()
-            .requestMatchers("/api/streams/*/search").permitAll()
-            .requestMatchers("/api/streams/user/*").permitAll()
-            .requestMatchers(req -> req.getMethod().equals("GET") && req.getRequestURI().matches("/api/streams/[^/]+")).permitAll()
+                        .requestMatchers("/api/streams").permitAll()
+                        .requestMatchers("/api/streams/live").permitAll()
+                        .requestMatchers("/api/streams/*/search").permitAll()
+                        .requestMatchers("/api/streams/user/*").permitAll()
+                        .requestMatchers(req -> req.getMethod().equals("GET") && req.getRequestURI().matches("/api/streams/[^/]+")).permitAll()
 
-            .requestMatchers("/api/users").permitAll()
-            .requestMatchers("/api/users/me").authenticated()
+                        .requestMatchers("/api/users").permitAll()
+                        .requestMatchers("/api/users/availability/**").permitAll()
+                        .requestMatchers("/api/users/me").authenticated()
 
-            .anyRequest().authenticated()
-        )        .sessionManagement(session -> session
-            .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-        )
-        .authenticationProvider(authenticationProvider)
-        .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-        .addFilterBefore(corsFilter, JwtAuthenticationFilter.class)
-        .build();
-  }
+                        .anyRequest().authenticated()
+                ).sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .authenticationProvider(authenticationProvider)
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(corsFilter, JwtAuthenticationFilter.class)
+                .build();
+    }
 
-  @Bean
-  public CorsConfigurationSource corsConfigurationSource() {
-    CorsConfiguration configuration = new CorsConfiguration();
-    configuration.setAllowedOrigins(List.of("http://localhost:5173"));
-    configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
-    configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
-    configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type", "Content-Length", "Content-Disposition"));
-    configuration.setAllowCredentials(true);
-    configuration.setMaxAge(3600L);
-    
-    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-    source.registerCorsConfiguration("/**", configuration);
-    return source;
-  }
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type", "Content-Length", "Content-Disposition"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
 }
