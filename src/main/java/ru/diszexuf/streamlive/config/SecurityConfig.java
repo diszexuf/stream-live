@@ -44,6 +44,7 @@ public class SecurityConfig {
             .requestMatchers("/api/users/availability/**").permitAll()
             .requestMatchers("/api/users/me").authenticated()
             .requestMatchers("/uploads/avatars/**").permitAll()
+            .requestMatchers("/uploads/thumbnails/**").permitAll()
 
             .anyRequest().authenticated()
         ).sessionManagement(session -> session

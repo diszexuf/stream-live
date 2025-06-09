@@ -1,3 +1,34 @@
+<script setup>
+import StreamCard from './StreamCard.vue'
+import { computed } from 'vue'
+
+const props = defineProps({
+  streams: {
+    type: Array,
+    required: true,
+    default: () => []
+  },
+  loading: {
+    type: Boolean,
+    default: false
+  },
+  emptyMessage: {
+    type: String,
+    default: 'Стримы не найдены'
+  },
+  isSearchResults: {
+    type: Boolean,
+    default: false
+  }
+})
+
+const isSearchResults = computed(() => {
+  return props.emptyMessage.includes('запросу');
+})
+
+defineEmits(['stream-click'])
+</script>
+
 <template>
   <div class="stream-list-container">
     <v-progress-linear v-if="loading" indeterminate color="primary" class="mb-4"></v-progress-linear>
@@ -30,38 +61,6 @@
     </div>
   </div>
 </template>
-
-<script setup>
-import StreamCard from './StreamCard.vue'
-import { computed } from 'vue'
-
-const props = defineProps({
-  streams: {
-    type: Array,
-    required: true,
-    default: () => []
-  },
-  loading: {
-    type: Boolean,
-    default: false
-  },
-  emptyMessage: {
-    type: String,
-    default: 'Стримы не найдены'
-  },
-  isSearchResults: {
-    type: Boolean,
-    default: false
-  }
-})
-
-// Вычисляем, являются ли результаты поиском
-const isSearchResults = computed(() => {
-  return props.emptyMessage.includes('запросу');
-})
-
-defineEmits(['stream-click'])
-</script>
 
 <style scoped>
 .stream-list-container {

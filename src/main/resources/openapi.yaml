@@ -293,7 +293,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               $ref: '#/components/schemas/StreamRequest'
       responses:
@@ -513,14 +513,15 @@ components:
         description:
           type: string
           maxLength: 500
-        tags:
-          type: array
-          items:
-            type: string
-            maxLength: 20
-          example: ["gaming", "esports"]
+#        tags:
+#          type: array
+#          items:
+#            type: string
+#            maxLength: 20
+#          example: ["gaming", "esports"]
         thumbnailUrl:
           type: string
+          format: binary
 
     StreamResponse:
       type: object

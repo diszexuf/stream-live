@@ -48,12 +48,17 @@ const createStream = async () => {
   successMessage.value = ''
 
   try {
-    const result = await streamStore.createStream({
-      title: formData.value.title,
-      description: formData.value.description,
-      thumbnailUrl: formData.value.thumbnailUrl,
-      tags: formData.value.tags
-    })
+    const streamData = new FormData()
+    streamData.append('title', formData.value.title)
+    streamData.append('description', formData.value.description || '')
+    if (formData.value.thumbnailUrl instanceof File) {
+      streamData.append('thumbnailUrl', formData.value.thumbnailUrl)
+    } else if (formData.value.thumbnailUrl) {
+      streamData.append('thumbnailUrl', formData.value.thumbnailUrl)
+    }
+    streamData.append('tags', JSON.stringify(formData.value.tags))
+
+    const result = await streamStore.createStream(streamData)
 
     if (result) {
       successMessage.value = 'Стрим успешно создан'
@@ -64,7 +69,7 @@ const createStream = async () => {
     }
   } catch (error) {
     console.error('Ошибка при создании стрима:', error)
-    errorMessage.value = 'Произошла ошибка при создании стрима'
+    errorMessage.value = error.message || 'Произошла ошибка при создании стрима'
   } finally {
     isLoading.value = false
   }
@@ -81,12 +86,17 @@ const updateStream = async () => {
   successMessage.value = ''
 
   try {
-    const result = await streamStore.updateStream({
-      title: formData.value.title,
-      description: formData.value.description,
-      thumbnailUrl: formData.value.thumbnailUrl,
-      tags: formData.value.tags
-    })
+    const streamData = new FormData()
+    streamData.append('title', formData.value.title)
+    streamData.append('description', formData.value.description || '')
+    if (formData.value.thumbnailUrl instanceof File) {
+      streamData.append('thumbnailUrl', formData.value.thumbnailUrl)
+    } else if (formData.value.thumbnailUrl) {
+      streamData.append('thumbnailUrl', formData.value.thumbnailUrl)
+    }
+    streamData.append('tags', JSON.stringify(formData.value.tags))
+
+    const result = await streamStore.updateStream(streamData)
 
     if (result) {
       successMessage.value = 'Стрим успешно обновлен'
@@ -95,7 +105,7 @@ const updateStream = async () => {
     }
   } catch (error) {
     console.error('Ошибка при обновлении стрима:', error)
-    errorMessage.value = 'Произошла ошибка при обновлении стрима'
+    errorMessage.value = error.message || 'Произошла ошибка при обновлении стрима'
   } finally {
     isLoading.value = false
   }
@@ -109,16 +119,11 @@ const endCurrentStream = async () => {
   successMessage.value = ''
 
   try {
-    const result = await streamStore.endStream()
-
-    if (result) {
-      successMessage.value = 'Стрим успешно завершен'
-    } else {
-      errorMessage.value = streamStore.error || 'Не удалось завершить стрим'
-    }
+    await streamStore.endStream()
+    successMessage.value = 'Стрим успешно завершен'
   } catch (error) {
     console.error('Ошибка при завершении стрима:', error)
-    errorMessage.value = 'Произошла ошибка при завершении стрима'
+    errorMessage.value = error.message || 'Произошла ошибка при завершении стрима'
   } finally {
     isLoading.value = false
   }
@@ -156,7 +161,7 @@ const loadUserStreams = async () => {
     await streamStore.fetchCurrentUserStreams()
   } catch (error) {
     console.error('Ошибка при загрузке стримов:', error)
-    errorMessage.value = 'Не удалось загрузить стримы'
+    errorMessage.value = error.message || 'Не удалось загрузить стримы'
   } finally {
     isLoading.value = false
   }
@@ -176,11 +181,11 @@ onMounted(async () => {
   <v-container v-if="isAuthenticated">
     <div class="d-flex align-center justify-space-between mb-4">
       <h1 class="text-h4">Управление стримами</h1>
-      <v-btn 
-        color="primary" 
-        :disabled="hasActiveStream" 
-        @click="activeTab = 'create'"
-        v-if="!hasActiveStream"
+      <v-btn
+          color="primary"
+          :disabled="hasActiveStream"
+          @click="activeTab = 'create'"
+          v-if="!hasActiveStream"
       >
         <v-icon start>mdi-plus</v-icon>
         Создать стрим
@@ -203,14 +208,14 @@ onMounted(async () => {
 
     <v-window v-model="activeTab">
       <v-window-item value="streams">
-        <v-card v-if="hasActiveStream" color="success" variant="outlined" class="mb-4">
+        <v-card v-if="hasActiveStream"  variant="outlined" class="mb-4">
           <v-card-title>Активный стрим</v-card-title>
           <v-card-text>
             <p><strong>Название:</strong> {{ activeStream.title }}</p>
             <p v-if="activeStream.description"><strong>Описание:</strong> {{ activeStream.description }}</p>
             <p><strong>Начало:</strong> {{ activeStream.getFormattedStartTime() }}</p>
             <p><strong>Зрителей:</strong> {{ activeStream.viewerCount }}</p>
-            
+
             <div class="d-flex gap-2 mt-4">
               <v-btn color="primary" class="mr-2" @click="editStream(activeStream)">
                 <v-icon start>mdi-pencil</v-icon>
@@ -240,29 +245,27 @@ onMounted(async () => {
         </v-card>
 
         <h2 class="text-h5 mb-3 mt-4">История стримов</h2>
-        
+
         <v-table v-if="streamStore.currentUserStreams.length > 0">
           <thead>
-            <tr>
-              <th>Название</th>
-              <th>Дата</th>
-              <th>Длительность</th>
-              <th>Зрители</th>
-              <th>Статус</th>
-            </tr>
+          <tr>
+            <th>Название</th>
+            <th>Дата</th>
+            <th>Зрители</th>
+            <th>Статус</th>
+          </tr>
           </thead>
           <tbody>
-            <tr v-for="stream in streamStore.currentUserStreams" :key="stream.id">
-              <td>{{ stream.title }}</td>
-              <td>{{ stream.getFormattedStartTime() }}</td>
-              <td>{{ stream.getDuration() }}</td>
-              <td>{{ stream.viewerCount }}</td>
-              <td>
-                <v-chip :color="stream.isLive ? 'success' : 'default'" size="small">
-                  {{ stream.isLive ? 'В эфире' : 'Завершен' }}
-                </v-chip>
-              </td>
-            </tr>
+          <tr v-for="stream in streamStore.currentUserStreams" :key="stream.id">
+            <td>{{ stream.title }}</td>
+            <td>{{ stream.getFormattedStartTime() }}</td>
+            <td>{{ stream.viewerCount }}</td>
+            <td>
+              <v-chip :color="stream.isLive ? 'success' : 'default'" size="small">
+                {{ stream.isLive ? 'В эфире' : 'Завершен' }}
+              </v-chip>
+            </td>
+          </tr>
           </tbody>
         </v-table>
 
@@ -279,46 +282,46 @@ onMounted(async () => {
           <v-card-text>
             <v-form @submit.prevent="createStream">
               <v-text-field
-                v-model="formData.title"
-                label="Название стрима"
-                required
-                :rules="[v => !!v || 'Название обязательно']"
-                class="mb-4"
+                  v-model="formData.title"
+                  label="Название стрима"
+                  required
+                  :rules="[v => !!v || 'Название обязательно']"
+                  class="mb-4"
               ></v-text-field>
 
               <v-textarea
-                v-model="formData.description"
-                label="Описание стрима"
-                rows="4"
-                auto-grow
-                class="mb-4"
+                  v-model="formData.description"
+                  label="Описание стрима"
+                  rows="4"
+                  auto-grow
+                  class="mb-4"
               ></v-textarea>
 
               <image-uploader
-                v-model="formData.thumbnailUrl"
-                label="Загрузить миниатюру стрима"
-                class="mb-4"
+                  v-model="formData.thumbnailUrl"
+                  label="Загрузить миниатюру стрима"
+                  class="mb-4"
               />
 
               <div class="mb-4">
                 <label class="text-subtitle-1 mb-2 d-block">Теги</label>
                 <div class="d-flex flex-wrap gap-2 mb-2">
                   <v-chip
-                    v-for="tag in formData.tags"
-                    :key="tag"
-                    closable
-                    @click:close="removeTag(tag)"
+                      v-for="tag in formData.tags"
+                      :key="tag"
+                      closable
+                      @click:close="removeTag(tag)"
                   >
                     {{ tag }}
                   </v-chip>
                 </div>
                 <div class="d-flex gap-2">
                   <v-text-field
-                    v-model="newTag"
-                    label="Новый тег"
-                    hide-details
-                    density="compact"
-                    @keyup.enter="addTag"
+                      v-model="newTag"
+                      label="Новый тег"
+                      hide-details
+                      density="compact"
+                      @keyup.enter="addTag"
                   ></v-text-field>
                   <v-btn @click="addTag" icon="mdi-plus"></v-btn>
                 </div>
@@ -343,46 +346,46 @@ onMounted(async () => {
           <v-card-text>
             <v-form @submit.prevent="updateStream">
               <v-text-field
-                v-model="formData.title"
-                label="Название стрима"
-                required
-                :rules="[v => !!v || 'Название обязательно']"
-                class="mb-4"
+                  v-model="formData.title"
+                  label="Название стрима"
+                  required
+                  :rules="[v => !!v || 'Название обязательно']"
+                  class="mb-4"
               ></v-text-field>
 
               <v-textarea
-                v-model="formData.description"
-                label="Описание стрима"
-                rows="4"
-                auto-grow
-                class="mb-4"
+                  v-model="formData.description"
+                  label="Описание стрима"
+                  rows="4"
+                  auto-grow
+                  class="mb-4"
               ></v-textarea>
 
               <image-uploader
-                v-model="formData.thumbnailUrl"
-                label="Загрузить миниатюру стрима"
-                class="mb-4"
+                  v-model="formData.thumbnailUrl"
+                  label="Загрузить миниатюру стрима"
+                  class="mb-4"
               />
 
               <div class="mb-4">
                 <label class="text-subtitle-1 mb-2 d-block">Теги</label>
                 <div class="d-flex flex-wrap gap-2 mb-2">
                   <v-chip
-                    v-for="tag in formData.tags"
-                    :key="tag"
-                    closable
-                    @click:close="removeTag(tag)"
+                      v-for="tag in formData.tags"
+                      :key="tag"
+                      closable
+                      @click:close="removeTag(tag)"
                   >
                     {{ tag }}
                   </v-chip>
                 </div>
                 <div class="d-flex gap-2">
                   <v-text-field
-                    v-model="newTag"
-                    label="Новый тег"
-                    hide-details
-                    density="compact"
-                    @keyup.enter="addTag"
+                      v-model="newTag"
+                      label="Новый тег"
+                      hide-details
+                      density="compact"
+                      @keyup.enter="addTag"
                   ></v-text-field>
                   <v-btn @click="addTag" icon="mdi-plus"></v-btn>
                 </div>
@@ -411,4 +414,4 @@ onMounted(async () => {
       <v-btn color="primary" to="/login">Войти</v-btn>
     </div>
   </v-container>
-</template> 
+</template>

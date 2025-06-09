@@ -1,7 +1,8 @@
 import {defineStore} from 'pinia';
-import {ref, computed} from 'vue';
+import {computed, ref} from 'vue';
 import {useUserStore} from './user';
-import {StreamsApi, StreamRequest} from "@/api/src/index.js";
+import {StreamRequest, StreamsApi} from "@/api/src/index.js";
+import {callProtectedApi} from './authHelpers';
 
 export const useStreamStore = defineStore('stream', () => {
     const userStore = useUserStore();
@@ -16,7 +17,7 @@ export const useStreamStore = defineStore('stream', () => {
     const enrichStream = (stream) => {
         if (!stream) return null;
 
-        const enrichedStream = {...stream};
+        const enrichedStream = { ...stream };
 
         if (enrichedStream.tags && typeof enrichedStream.tags === 'object' && !Array.isArray(enrichedStream.tags)) {
             enrichedStream.tags = [];
@@ -95,8 +96,9 @@ export const useStreamStore = defineStore('stream', () => {
     }
 
     async function fetchCurrentUserStreams() {
-        if (!userStore.user || !userStore.user.id) {
-            throw new Error('Пользователь не авторизован');
+        if (!userStore.isAuthenticated || !userStore.user?.id) {
+            error.value = 'Необходимо авторизоваться';
+            throw new Error('Unauthorized');
         }
 
         isLoading.value = true;
@@ -104,12 +106,12 @@ export const useStreamStore = defineStore('stream', () => {
 
         try {
             const streamsService = new StreamsApi();
-            const streams = await streamsService.getStreamsByUser(userStore.user.id);
+            const streams = await callProtectedApi(() => streamsService.getStreamsByUser(userStore.user.id));
             currentUserStreams.value = streams.map(stream => enrichStream(stream));
         } catch (err) {
             console.error('Ошибка при загрузке стримов пользователя:', err.message);
             error.value = 'Не удалось загрузить ваши стримы';
-            throw new Error(err.response?.status === 401 ? 'Unauthorized' : 'Failed to fetch user streams');
+            throw new Error(err.message || 'Failed to fetch user streams');
         } finally {
             isLoading.value = false;
         }
@@ -117,7 +119,6 @@ export const useStreamStore = defineStore('stream', () => {
 
     async function fetchStreamById(streamId) {
         if (!streamId) {
-            console.error('fetchStreamById: streamId не указан');
             error.value = 'ID стрима не указан';
             throw new Error('Stream ID is required');
         }
@@ -145,41 +146,24 @@ export const useStreamStore = defineStore('stream', () => {
         }
     }
 
-    async function createStream(streamData) {
-        if (!userStore.isAuthenticated) {
-            console.error('createStream: Пользователь не авторизован');
-            error.value = 'Необходимо авторизоваться';
-            throw new Error('Unauthorized');
-        }
 
-        isLoading.value = true;
-        error.value = null;
+    async function createStream(formData) {
+        const streamsService = new StreamsApi();
 
-        try {
-            const streamsService = new StreamsApi();
-            const request = new StreamRequest(streamData);
-            const newStream = await streamsService.createStream(request);
-            currentUserStreams.value.push(enrichStream(newStream));
-        } catch (err) {
-            console.error('Ошибка при создании стрима:', err.message);
-            if (err.response?.status === 401) {
-                error.value = 'Требуется авторизация';
-            } else if (err.response?.status === 400) {
-                error.value = 'Некорректные данные стрима';
-            } else if (err.response?.status === 403) {
-                error.value = 'Доступ запрещен';
-            } else {
-                error.value = 'Не удалось создать стрим';
-            }
-            throw new Error(err.response?.status === 400 ? 'Invalid input' : 'Failed to create stream');
-        } finally {
-            isLoading.value = false;
-        }
+        const title = formData.get("title");
+        const description = formData.get("description") || '';
+        const thumbnailUrl = formData.get("thumbnailUrl");
+
+        return await callProtectedApi(() =>
+            streamsService.createStream(title, {
+                description,
+                thumbnailUrl
+            })
+        );
     }
 
-    async function updateStream(streamData) {
+    async function updateStream(formData) {
         if (!userStore.isAuthenticated) {
-            console.error('updateStream: Пользователь не авторизован');
             error.value = 'Необходимо авторизоваться';
             throw new Error('Unauthorized');
         }
@@ -189,8 +173,14 @@ export const useStreamStore = defineStore('stream', () => {
 
         try {
             const streamsService = new StreamsApi();
-            const request = new StreamRequest(streamData);
-            const updatedStream = await streamsService.updateStream(request);
+            const request = new StreamRequest({
+                title: formData.get('title'),
+                description: formData.get('description'),
+                tags: JSON.parse(formData.get('tags') || '[]'),
+                thumbnailUrl: formData.get('thumbnailUrl')
+            });
+
+            const updatedStream = await callProtectedApi(() => streamsService.updateStream(request));
             const enrichedStream = enrichStream(updatedStream);
 
             const index = currentUserStreams.value.findIndex(s => s.id === updatedStream.id);
@@ -201,6 +191,7 @@ export const useStreamStore = defineStore('stream', () => {
             if (currentStream.value && currentStream.value.id === updatedStream.id) {
                 currentStream.value = enrichedStream;
             }
+            return enrichedStream;
         } catch (err) {
             console.error('Ошибка при обновлении стрима:', err.message);
             if (err.response?.status === 401) {
@@ -212,7 +203,7 @@ export const useStreamStore = defineStore('stream', () => {
             } else {
                 error.value = 'Не удалось обновить стрим';
             }
-            throw new Error(err.response?.status === 404 ? 'Stream not found' : 'Failed to update stream');
+            throw new Error(err.message || 'Failed to update stream');
         } finally {
             isLoading.value = false;
         }
@@ -220,7 +211,6 @@ export const useStreamStore = defineStore('stream', () => {
 
     async function endStream() {
         if (!userStore.isAuthenticated) {
-            console.error('endStream: Пользователь не авторизован');
             error.value = 'Необходимо авторизоваться';
             throw new Error('Unauthorized');
         }
@@ -230,7 +220,7 @@ export const useStreamStore = defineStore('stream', () => {
 
         try {
             const streamsService = new StreamsApi();
-            await streamsService.endStream();
+            await callProtectedApi(() => streamsService.endStream());
             await fetchCurrentUserStreams();
         } catch (err) {
             console.error('Ошибка при завершении стрима:', err.message);
@@ -243,7 +233,7 @@ export const useStreamStore = defineStore('stream', () => {
             } else {
                 error.value = 'Не удалось завершить стрим';
             }
-            throw new Error(err.response?.status === 404 ? 'Stream not found' : 'Failed to end stream');
+            throw new Error(err.message || 'Failed to end stream');
         } finally {
             isLoading.value = false;
         }
@@ -259,12 +249,12 @@ export const useStreamStore = defineStore('stream', () => {
 
         try {
             const streamsService = new StreamsApi();
-            const streams = await streamsService.searchStreams({query});
+            const streams = await streamsService.searchStreams(query);
             return streams.map(stream => enrichStream(stream));
         } catch (err) {
             console.error('Ошибка при поиске стримов:', err.message);
             error.value = 'Не удалось выполнить поиск';
-            throw new Error('Failed to search streams');
+            throw new Error(err.message || 'Failed to search streams');
         } finally {
             isLoading.value = false;
         }
@@ -296,10 +286,8 @@ export const useStreamStore = defineStore('stream', () => {
         currentStream,
         isLoading,
         error,
-
         hasActiveStream,
         activeStream,
-
         fetchAllStreams,
         fetchLiveStreams,
         fetchCurrentUserStreams,

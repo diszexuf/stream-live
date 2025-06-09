@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import ru.diszexuf.streamlive.api.StreamsApi;
 import ru.diszexuf.streamlive.model.StreamRequestDto;
 import ru.diszexuf.streamlive.model.StreamResponseDto;
@@ -32,8 +33,8 @@ public class StreamController implements StreamsApi {
     private final UpdateStreamUseCase updateStreamUseCase;
 
     @Override
-    public ResponseEntity<StreamResponseDto> createStream(StreamRequestDto streamRequestDto) {
-        return ResponseEntity.ok(createStreamUseCase.execute(streamRequestDto));
+    public ResponseEntity<StreamResponseDto> createStream(String title, String description, MultipartFile thumbnailUrl) {
+        return ResponseEntity.ok(createStreamUseCase.execute(title, description, thumbnailUrl));
     }
 
     @Override

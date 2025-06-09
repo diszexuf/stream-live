@@ -118,7 +118,7 @@ const resetStreamKey = async () => {
         userStore.user.streamKey = newKey
       }
 
-      isStreamKeyVisible.value = true
+      isStreamKeyVisible.value = false
 
       await nextTick()
     }
