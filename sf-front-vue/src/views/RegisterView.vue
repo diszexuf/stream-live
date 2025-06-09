@@ -30,19 +30,20 @@ const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
 const validateEmail = (email) => {
   if (!email) return 'Введите email'
   if (!emailRegex.test(email)) return 'Некорректный формат email'
-  return ''
+  if (!emailAvailable.value && emailRegex.test(email)) return 'Этот email занят'
+  return true
 }
+
 
 const isLoading = ref(false)
 
 const formValid = computed(() => {
   return (
       username.value.length >= 3 &&
-      emailRegex.test(email.value) &&
+      validateEmail(email.value) === true &&
       password.value.length >= 6 &&
       password.value === confirmPassword.value &&
       usernameAvailable.value &&
-      emailAvailable.value &&
       privacyPolicyAccepted.value
   )
 })
@@ -55,10 +56,9 @@ const usernameSuccessMessage = computed(() => {
 })
 
 const emailSuccessMessage = computed(() => {
-  if (!checkingEmail.value && emailRegex.test(email.value) && emailAvailable.value) {
-    return 'Этот email доступен!'
-  }
-  return ''
+  return !checkingEmail.value && emailRegex.test(email.value) && emailAvailable.value
+      ? 'Этот email доступен!'
+      : ''
 })
 
 function debounce(fn, delay = 500) {
@@ -96,28 +96,19 @@ async function checkUsername(value) {
 
 async function checkEmail(value) {
   if (!emailRegex.test(value)) {
-    emailAvailable.value = true;
-    emailError.value = '';
-    checkingEmail.value = false;
-    return;
+    emailAvailable.value = true
+    checkingEmail.value = false
+    return
   }
 
-  emailCheckInProgressFor.value = value;
-  checkingEmail.value = true;
-
+  checkingEmail.value = true
   try {
-    const available = await userStore.checkFieldAvailability('email', value);
-
-    if (emailCheckInProgressFor.value === value) {
-      emailAvailable.value = available;
-      emailError.value = available ? '' : 'Этот email занят';
-    }
+    emailAvailable.value = await userStore.checkFieldAvailability('email', value)
   } finally {
-    if (emailCheckInProgressFor.value === value) {
-      checkingEmail.value = false;
-    }
+    checkingEmail.value = false
   }
 }
+
 
 const debouncedCheckUsername = debounce(checkUsername)
 const debouncedCheckEmail = debounce(checkEmail)
@@ -127,13 +118,8 @@ watch(username, (newVal) => {
 })
 
 watch(email, (newVal) => {
-  if (emailRegex.test(newVal)) {
-    debouncedCheckEmail(newVal);
-  } else {
-    emailAvailable.value = true;
-    emailError.value = '';
-  }
-});
+  debouncedCheckEmail(newVal)
+})
 
 watch(privacyPolicyAccepted, (newVal) => {
   if (newVal) {
@@ -202,8 +188,6 @@ const register = async () => {
           type="email"
           required
           :rules="[validateEmail]"
-          :error-messages="emailError"
-          :error="!!emailError || checkingEmail"
           prepend-inner-icon="mdi-email"
           variant="outlined"
           density="comfortable"

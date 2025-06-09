@@ -201,7 +201,6 @@ onMounted(async () => {
               @change="handleFileUpload"
           />
 
-          <!-- Индикатор нового файла -->
           <v-chip
               v-if="selectedAvatarFile"
               size="small"
