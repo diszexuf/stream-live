@@ -41,7 +41,7 @@ public class UpdateUserUseCase {
         Path path = Paths.get(UPLOAD_DIR, fileName);
         Files.createDirectories(path.getParent());
         Files.copy(avatar.getInputStream(), path);
-        avatarUrl = "https://example.com/uploads/avatars/" + fileName;
+        avatarUrl = "http://127.0.0.1:8080/uploads/avatars/" + fileName;
         log.info("Avatar uploaded for user {}: {}", username, avatarUrl);
       } catch (IOException e) {
         log.error("Failed to upload avatar for user {}: {}", username, e.getMessage());

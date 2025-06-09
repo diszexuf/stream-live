@@ -75,19 +75,46 @@ export const useUserStore = defineStore('user', () => {
         }
     }
 
-    async function updateCurrentUser({email, avatarUrl, bio}) {
+    async function updateCurrentUser({email, avatarFile, bio}) {
         if (!user.value) {
             throw new Error('Пользователь не авторизован');
         }
 
         try {
-            const updateRequest = new UserUpdateRequest();
+            if (avatarFile) {
+                const formData = new FormData();
+                if (email) formData.append('email', email);
+                if (bio) formData.append('bio', bio);
+                formData.append('avatarUrl', avatarFile);
 
-            if (email) updateRequest.email = email;
-            if (avatarUrl) updateRequest.avatarUrl = avatarUrl;
-            if (bio) updateRequest.bio = bio;
+                const response = await callProtectedApi(async () => {
+                    const apiClient = usersService.apiClient;
+                    const basePath = apiClient.basePath || 'http://localhost:8080/api';
 
-            await callProtectedApi(() => usersService.updateUser(updateRequest));
+                    const fetchResponse = await fetch(`${basePath}/users/me`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${token.value}`,
+                        },
+                        body: formData
+                    });
+
+                    if (!fetchResponse.ok) {
+                        const error = new Error(`HTTP ${fetchResponse.status}: ${fetchResponse.statusText}`);
+                        error.response = { status: fetchResponse.status, statusText: fetchResponse.statusText };
+                        throw error;
+                    }
+
+                    return await fetchResponse.json();
+                });
+            } else {
+                const updateRequest = new UserUpdateRequest();
+                if (email) updateRequest.email = email;
+                if (bio) updateRequest.bio = bio;
+
+                await callProtectedApi(() => usersService.updateUser(updateRequest));
+            }
+
             await fetchCurrentUser();
             return true;
         } catch (error) {

@@ -7,15 +7,17 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const bioText = ref('')
+const selectedAvatarFile = ref(null)
+const previewAvatarUrl = ref('')
 
 const safeUserData = computed(() => {
   if (!userStore.user) return {};
-  
+
   return {
     username: userStore.user.username || '',
     email: userStore.user.email || '',
     bio: typeof userStore.user.bio === 'object' ? '' : (userStore.user.bio || ''),
-    avatarUrl: userStore.user.avatarUrl || 'https://picsum.photos/200/300',
+    avatarUrl: previewAvatarUrl.value || userStore.user.avatarUrl || 'https://picsum.photos/200/300',
     followerCount: userStore.user.followerCount || 0
   };
 });
@@ -40,16 +42,30 @@ const triggerFileUpload = () => {
 const handleFileUpload = (event) => {
   const file = event.target.files[0]
   if (!file) return
-  
+
+  // Проверяем размер файла (например, максимум 5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    errorMessage.value = 'Файл слишком большой. Максимальный размер: 5MB'
+    return
+  }
+
+  // Проверяем тип файла
+  if (!file.type.startsWith('image/')) {
+    errorMessage.value = 'Пожалуйста, выберите изображение'
+    return
+  }
+
+  // Сохраняем файл как есть - пусть API клиент сам разберется
+  selectedAvatarFile.value = file
+
+  // Создаем превью
   const reader = new FileReader()
   reader.onload = (e) => {
-    // добавить логику для загрузки файла на сервер
-    // пока обновляем URL аватара локально
-    if (userStore.user) {
-      userStore.user.avatarUrl = e.target.result
-    }
+    previewAvatarUrl.value = e.target.result
   }
   reader.readAsDataURL(file)
+
+  errorMessage.value = ''
 }
 
 const saveProfile = async () => {
@@ -61,20 +77,27 @@ const saveProfile = async () => {
   const payload = {
     email: userStore.user.email,
     bio: bioValue,
-    avatarUrl: userStore.user.avatarUrl || 'https://picsum.photos/200/300',
+    avatarFile: selectedAvatarFile.value, // Передаем файл, а не URL
   }
 
-  console.log('ProfileView: Отправка данных профиля:', payload)
+  console.log('ProfileView: Отправка данных профиля:', {
+    ...payload,
+    avatarFile: payload.avatarFile ? `File: ${payload.avatarFile.name}` : null
+  })
 
   try {
     console.log('ProfileView: Вызов userStore.updateCurrentUser')
     const result = await userStore.updateCurrentUser(payload)
     console.log('ProfileView: Результат обновления профиля:', result)
-    
+
     if (result) {
       console.log('ProfileView: Профиль успешно обновлен')
       alert('Профиль успешно обновлен')
-      
+
+      // Сбрасываем выбранный файл и превью после успешного сохранения
+      selectedAvatarFile.value = null
+      previewAvatarUrl.value = ''
+
       if (userStore.user) {
         userStore.user.bio = bioValue
         console.log('ProfileView: Локальное значение bio обновлено:', bioValue)
@@ -85,12 +108,12 @@ const saveProfile = async () => {
     }
   } catch (error) {
     console.error('ProfileView: Ошибка при обновлении профиля:', error)
-    
+
     if (error.status) {
       console.error(`ProfileView: Код ошибки: ${error.status}, Сообщение: ${error.statusText || error.message}`)
       errorMessage.value = `Ошибка ${error.status}: ${error.statusText || error.message}`
     } else {
-      errorMessage.value = 'Ошибка при сохранении профиля'
+      errorMessage.value = error.message || 'Ошибка при сохранении профиля'
     }
   } finally {
     isLoading.value = false
@@ -111,9 +134,9 @@ const resetStreamKey = async () => {
       if (userStore.user) {
         userStore.user.streamKey = newKey
       }
-      
+
       isStreamKeyVisible.value = true
-      
+
       await nextTick()
     }
   } catch (error) {
@@ -124,7 +147,7 @@ const resetStreamKey = async () => {
 
 const copyStreamKey = () => {
   if (!userStore.user || !userStore.user.streamKey) return
-  
+
   navigator.clipboard.writeText(userStore.user.streamKey)
       .then(() => alert('Ключ стрима скопирован'))
       .catch(err => console.error('Ошибка копирования:', err))
@@ -132,13 +155,13 @@ const copyStreamKey = () => {
 
 const loadUserData = async () => {
   isUserLoading.value = true
-  
+
   try {
     if (!userStore.user) {
       await userStore.fetchCurrentUser()
       console.log('Загруженные данные пользователя:', userStore.user)
     }
-    
+
     if (userStore.user) {
       bioText.value = typeof userStore.user.bio === 'object' ? '' : (userStore.user.bio || '')
     }
@@ -170,13 +193,24 @@ onMounted(async () => {
               <v-icon>mdi-camera</v-icon>
             </div>
           </v-avatar>
-          <input 
-            ref="fileInput" 
-            type="file" 
-            accept="image/*" 
-            class="d-none" 
-            @change="handleFileUpload"
+          <input
+              ref="fileInput"
+              type="file"
+              accept="image/*"
+              class="d-none"
+              @change="handleFileUpload"
           />
+
+          <!-- Индикатор нового файла -->
+          <v-chip
+              v-if="selectedAvatarFile"
+              size="small"
+              color="success"
+              class="position-absolute"
+              style="top: -8px; right: -8px;"
+          >
+            Новое фото
+          </v-chip>
         </div>
         <v-card-title>{{ safeUserData.username }}</v-card-title>
         <v-card-subtitle>{{ safeUserData.followerCount }} подписчиков</v-card-subtitle>
@@ -205,10 +239,19 @@ onMounted(async () => {
                   label="О себе"
                   rows="4"
                   auto-grow
+                  counter="500"
+                  :rules="[v => !v || v.length <= 500 || 'Максимум 500 символов']"
                   class="mb-4"
               ></v-textarea>
 
-              <v-btn type="submit" color="primary" :loading="isLoading">Сохранить изменения</v-btn>
+              <!-- Информация о выбранном файле -->
+              <v-alert v-if="selectedAvatarFile" type="info" variant="tonal" class="mb-4">
+                Выбран файл: {{ selectedAvatarFile.name }} ({{ Math.round(selectedAvatarFile.size / 1024) }} KB)
+              </v-alert>
+
+              <v-btn type="submit" color="primary" :loading="isLoading">
+                Сохранить изменения
+              </v-btn>
 
               <v-alert v-if="errorMessage" type="error" variant="tonal" border="start" class="mt-4">
                 {{ errorMessage }}
@@ -262,7 +305,7 @@ onMounted(async () => {
               </v-card-text>
             </v-card>
           </v-window-item>
-          
+
         </v-window>
       </v-card-text>
     </v-card>
