@@ -43,22 +43,17 @@ const handleFileUpload = (event) => {
   const file = event.target.files[0]
   if (!file) return
 
-  // Проверяем размер файла (например, максимум 5MB)
   if (file.size > 5 * 1024 * 1024) {
     errorMessage.value = 'Файл слишком большой. Максимальный размер: 5MB'
     return
   }
 
-  // Проверяем тип файла
   if (!file.type.startsWith('image/')) {
     errorMessage.value = 'Пожалуйста, выберите изображение'
     return
   }
 
-  // Сохраняем файл
   selectedAvatarFile.value = file
-
-  // Создаем превью
   const reader = new FileReader()
   reader.onload = (e) => {
     previewAvatarUrl.value = e.target.result
@@ -79,28 +74,17 @@ const saveProfile = async () => {
   if (bioValue) formData.append('bio', bioValue)
   if (selectedAvatarFile.value) formData.append('avatarUrl', selectedAvatarFile.value)
 
-  console.log('ProfileView: Отправка данных профиля:', {
-    email: userStore.user.email,
-    bio: bioValue,
-    avatarUrl: selectedAvatarFile.value ? `File: ${selectedAvatarFile.value.name}` : null
-  })
-
   try {
-    console.log('ProfileView: Вызов userStore.updateCurrentUser')
     const result = await userStore.updateCurrentUser(formData)
-    console.log('ProfileView: Результат обновления профиля:', result)
 
     if (result) {
-      console.log('ProfileView: Профиль успешно обновлен')
       alert('Профиль успешно обновлен')
 
-      // Сбрасываем выбранный файл и превью после успешного сохранения
       selectedAvatarFile.value = null
       previewAvatarUrl.value = ''
 
       if (userStore.user) {
         userStore.user.bio = bioValue
-        console.log('ProfileView: Локальное значение bio обновлено:', bioValue)
       }
     } else {
       console.error('ProfileView: Не удалось обновить профиль, userStore.updateCurrentUser вернул false')
@@ -117,7 +101,6 @@ const saveProfile = async () => {
     }
   } finally {
     isLoading.value = false
-    console.log('ProfileView: Завершение обработки сохранения профиля')
   }
 }
 
@@ -159,7 +142,6 @@ const loadUserData = async () => {
   try {
     if (!userStore.user) {
       await userStore.fetchCurrentUser()
-      console.log('Загруженные данные пользователя:', userStore.user)
     }
 
     if (userStore.user) {
@@ -291,7 +273,7 @@ onMounted(async () => {
                       <v-icon start>mdi-content-copy</v-icon>
                       Копировать
                     </v-btn>
-                    <v-btn color="error" @click="resetStreamKey">
+                    <v-btn class="ml-3" color="error" @click="resetStreamKey">
                       <v-icon start>mdi-refresh</v-icon>
                       Сбросить
                     </v-btn>

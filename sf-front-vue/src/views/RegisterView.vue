@@ -11,19 +11,15 @@ const username = ref('')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
+const passwordError = ref('')
 const privacyPolicyAccepted = ref(false)
-
 const checkingUsername = ref(false)
 const checkingEmail = ref(false)
 const usernameAvailable = ref(true)
 const emailAvailable = ref(true)
-
-const emailCheckInProgressFor = ref('')
 const usernameCheckInProgressFor = ref('')
-
 const errorMessage = ref('')
 const usernameError = ref('')
-const emailError = ref('')
 
 const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
 
@@ -34,7 +30,6 @@ const validateEmail = (email) => {
   return true
 }
 
-
 const isLoading = ref(false)
 
 const formValid = computed(() => {
@@ -43,6 +38,7 @@ const formValid = computed(() => {
       validateEmail(email.value) === true &&
       password.value.length >= 6 &&
       password.value === confirmPassword.value &&
+      !passwordError.value &&
       usernameAvailable.value &&
       privacyPolicyAccepted.value
   )
@@ -109,7 +105,6 @@ async function checkEmail(value) {
   }
 }
 
-
 const debouncedCheckUsername = debounce(checkUsername)
 const debouncedCheckEmail = debounce(checkEmail)
 
@@ -129,6 +124,22 @@ watch(privacyPolicyAccepted, (newVal) => {
     if (emailRegex.test(email.value)) {
       debouncedCheckEmail(email.value)
     }
+  }
+})
+
+watch(password, (newVal) => {
+  if (confirmPassword.value && newVal !== confirmPassword.value) {
+    passwordError.value = 'Пароли не совпадают'
+  } else {
+    passwordError.value = ''
+  }
+})
+
+watch(confirmPassword, (newVal) => {
+  if (newVal !== password.value) {
+    passwordError.value = 'Пароли не совпадают'
+  } else {
+    passwordError.value = ''
   }
 })
 
@@ -209,10 +220,14 @@ const register = async () => {
           label="Пароль"
           type="password"
           required
-          :rules="[v => !!v || 'Введите пароль']"
+          :rules="[
+            v => !!v || 'Введите пароль',
+            v => v.length >= 6 || 'Пароль должен содержать минимум 6 символов'
+          ]"
           prepend-inner-icon="mdi-lock"
           variant="outlined"
           density="comfortable"
+          @input="() => { if (confirmPassword) passwordError = password !== confirmPassword ? 'Пароли не совпадают' : '' }"
       />
 
       <v-text-field
@@ -220,10 +235,15 @@ const register = async () => {
           label="Подтвердите пароль"
           type="password"
           required
-          :rules="[v => v === password || 'Пароли не совпадают']"
+          :rules="[
+            v => !!v || 'Подтвердите пароль',
+            v => v === password || 'Пароли не совпадают'
+          ]"
+          :error-messages="passwordError"
           prepend-inner-icon="mdi-lock-check"
           variant="outlined"
           density="comfortable"
+          @input="passwordError = password !== confirmPassword ? 'Пароли не совпадают' : ''"
       />
 
       <v-checkbox
