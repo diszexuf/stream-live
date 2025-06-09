@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useStreamStore } from '@/stores/stream'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
+import ImageUploader from '@/components/stream/ImageUploader.vue'
 
 const router = useRouter()
 const streamStore = useStreamStore()
@@ -293,11 +294,11 @@ onMounted(async () => {
                 class="mb-4"
               ></v-textarea>
 
-              <v-text-field
+              <image-uploader
                 v-model="formData.thumbnailUrl"
-                label="URL миниатюры"
+                label="Загрузить миниатюру стрима"
                 class="mb-4"
-              ></v-text-field>
+              />
 
               <div class="mb-4">
                 <label class="text-subtitle-1 mb-2 d-block">Теги</label>
@@ -357,11 +358,11 @@ onMounted(async () => {
                 class="mb-4"
               ></v-textarea>
 
-              <v-text-field
+              <image-uploader
                 v-model="formData.thumbnailUrl"
-                label="URL миниатюры"
+                label="Загрузить миниатюру стрима"
                 class="mb-4"
-              ></v-text-field>
+              />
 
               <div class="mb-4">
                 <label class="text-subtitle-1 mb-2 d-block">Теги</label>

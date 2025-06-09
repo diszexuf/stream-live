@@ -29,15 +29,13 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin
       PGADMIN_LISTEN_PORT: 80
     ports:
-      - "5050:80"  # Исправлено: мапим 5050 на 80 (внутренний порт pgAdmin)
+      - "5050:80"
     restart: unless-stopped
     depends_on:
       postgres:
-        condition: service_healthy  # Добавлено ожидание готовности PostgreSQL
+        condition: service_healthy
     networks:
       - streamlive-network
-
-
 
   rtmp:
     image: tiangolo/nginx-rtmp

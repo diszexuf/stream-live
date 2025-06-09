@@ -1,4 +1,9 @@
 <script setup>
+import { useStreamStore } from '@/stores/stream'
+import { computed } from 'vue'
+
+const streamStore = useStreamStore()
+
 defineProps({
   isAuthenticated: {
     type: Boolean,
@@ -7,6 +12,8 @@ defineProps({
 })
 
 defineEmits(['logout'])
+
+const hasActiveStream = computed(() => streamStore.hasActiveStream)
 </script>
 
 <template>
@@ -33,6 +40,7 @@ defineEmits(['logout'])
       >Мой профиль</v-btn>
 
       <v-btn
+          v-if="!hasActiveStream"
           color="success"
           variant="flat"
           rounded="lg"

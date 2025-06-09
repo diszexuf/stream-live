@@ -17,7 +17,7 @@ public class JwtService {
   private final SecretKey secretKey;
 
   public JwtService() {
-    this.secretKey = Keys.hmacShaKeyFor("my-secret-key-12345-my-secret-key-12345".getBytes()); //todo придумать ключ и вынести в .env
+    this.secretKey = Keys.hmacShaKeyFor("my-secret-key-12345-my-secret-key-12345".getBytes()); // todo: вынести в .env
   }
 
   public String extractUsername(String token) {
@@ -33,7 +33,7 @@ public class JwtService {
     return Jwts.builder()
         .setSubject(userDetails.getUsername())
         .setIssuedAt(new Date())
-        .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) // 24h
+        .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24))
         .signWith(secretKey, SignatureAlgorithm.HS256)
         .compact();
   }

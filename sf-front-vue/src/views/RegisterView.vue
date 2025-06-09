@@ -1,5 +1,5 @@
 <script setup>
-import {ref, watch, computed} from 'vue'
+import {computed, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import {useUserStore} from '@/stores/user'
 import AuthCard from '@/components/auth/AuthCard.vue'
@@ -22,29 +22,26 @@ const errorMessage = ref('')
 const usernameError = ref('')
 const emailError = ref('')
 
+const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+
+const validateEmail = (email) => {
+  if (!email) return 'Введите email'
+  if (!emailRegex.test(email)) return 'Некорректный формат email'
+  return ''
+}
+
 const isLoading = ref(false)
 
 const formValid = computed(() => {
-  const isValid = (
+  return (
       username.value.length >= 3 &&
-      email.value.includes('@') &&
+      emailRegex.test(email.value) &&
       password.value.length >= 6 &&
       password.value === confirmPassword.value &&
       usernameAvailable.value &&
       emailAvailable.value &&
       privacyPolicyAccepted.value
   )
-  console.log('Form Valid:', {
-    usernameLength: username.value.length,
-    emailValid: email.value.includes('@'),
-    passwordLength: password.value.length,
-    passwordsMatch: password.value === confirmPassword.value,
-    usernameAvailable: usernameAvailable.value,
-    emailAvailable: emailAvailable.value,
-    privacyPolicyAccepted: privacyPolicyAccepted.value,
-    isValid
-  })
-  return isValid
 })
 
 const usernameSuccessMessage = computed(() => {
@@ -55,7 +52,7 @@ const usernameSuccessMessage = computed(() => {
 })
 
 const emailSuccessMessage = computed(() => {
-  if (!checkingEmail.value && email.value.includes('@') && emailAvailable.value) {
+  if (!checkingEmail.value && emailRegex.test(email.value) && emailAvailable.value) {
     return 'Этот email доступен!'
   }
   return ''
@@ -88,20 +85,20 @@ async function checkUsername(value) {
 }
 
 async function checkEmail(value) {
-  if (!value.includes('@')) {
-    emailAvailable.value = true
-    emailError.value = ''
-    checkingEmail.value = false
-    return
+  if (!emailRegex.test(value)) {
+    emailAvailable.value = true;
+    emailError.value = '';
+    checkingEmail.value = false;
+    return;
   }
 
-  checkingEmail.value = true
+  checkingEmail.value = true;
   try {
-    const available = await userStore.checkFieldAvailability('email', value)
-    emailAvailable.value = available
-    emailError.value = available ? '' : 'Этот email занят'
+    const available = await userStore.checkFieldAvailability('email', value);
+    emailAvailable.value = available;
+    emailError.value = available ? '' : 'Этот email занят';
   } finally {
-    checkingEmail.value = false
+    checkingEmail.value = false;
   }
 }
 
@@ -113,13 +110,23 @@ watch(username, (newVal) => {
 })
 
 watch(email, (newVal) => {
-  debouncedCheckEmail(newVal)
-})
+  if (emailRegex.test(newVal)) {
+    debouncedCheckEmail(newVal);
+  } else {
+    emailAvailable.value = true;
+    emailError.value = '';
+  }
+  console.log('Email:', newVal, 'Available:', emailAvailable.value, 'Error:', emailError.value);
+});
 
 watch(privacyPolicyAccepted, (newVal) => {
   if (newVal) {
-    debouncedCheckUsername(username.value)
-    debouncedCheckEmail(email.value)
+    if (username.value.length >= 3) {
+      debouncedCheckUsername(username.value)
+    }
+    if (emailRegex.test(email.value)) {
+      debouncedCheckEmail(email.value)
+    }
   }
 })
 
@@ -178,8 +185,9 @@ const register = async () => {
           label="Email"
           type="email"
           required
-          :rules="[v => !!v || 'Введите email']"
+          :rules="[validateEmail]"
           :error-messages="emailError"
+          :error="emailError || checkingEmail || !emailAvailable"
           prepend-inner-icon="mdi-email"
           variant="outlined"
           density="comfortable"

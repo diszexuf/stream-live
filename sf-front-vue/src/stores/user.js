@@ -27,9 +27,13 @@ export const useUserStore = defineStore('user', () => {
             setAuthToken(response.token);
 
             await fetchCurrentUser();
+            return true;
         } catch (error) {
             console.error('Ошибка при входе:', error.message);
-            throw new Error(error.response?.status === 401 ? 'Invalid credentials' : 'Login failed');
+            if (error.response?.status === 401 || error.response?.status === 403) {
+                throw new Error('Неверное имя пользователя или пароль');
+            }
+            throw new Error('Ошибка при входе в систему');
         }
     }
 
@@ -44,6 +48,7 @@ export const useUserStore = defineStore('user', () => {
             setAuthToken(response.token);
 
             await fetchCurrentUser();
+            return true;
         } catch (error) {
             console.error('Ошибка при регистрации:', error.message);
             throw new Error(error.response?.status === 409 ? 'Username or email already exists' : 'Registration failed');
@@ -84,6 +89,7 @@ export const useUserStore = defineStore('user', () => {
 
             await callProtectedApi(() => usersService.updateUser(updateRequest));
             await fetchCurrentUser();
+            return true;
         } catch (error) {
             console.error('Ошибка при обновлении профиля:', error.message);
             throw new Error(error.response?.status === 400 ? 'Invalid input' : 'Profile update failed');

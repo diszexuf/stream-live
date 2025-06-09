@@ -5,11 +5,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import ru.diszexuf.streamlive.api.UsersApi;
 import ru.diszexuf.streamlive.model.RegenerateCurrentUserStreamKey200ResponseDto;
 import ru.diszexuf.streamlive.model.UserResponseDto;
-import ru.diszexuf.streamlive.model.UserUpdateRequestDto;
-import ru.diszexuf.streamlive.user.useCases.ResetStreamKeyUseCase;
 import ru.diszexuf.streamlive.user.useCases.*;
 
 import java.util.List;
@@ -73,8 +72,7 @@ public class UserController implements UsersApi {
     }
 
     @Override
-    public ResponseEntity<UserResponseDto> updateUser(UserUpdateRequestDto userUpdateRequestDto) {
-        return ResponseEntity.ok(updateUserUseCase.execute(userUpdateRequestDto));
+    public ResponseEntity<UserResponseDto> updateUser(String email, MultipartFile avatarUrl, String bio) {
+        return ResponseEntity.ok(updateUserUseCase.execute(email, avatarUrl, bio));
     }
-
 }
