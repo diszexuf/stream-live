@@ -18,6 +18,9 @@ const checkingEmail = ref(false)
 const usernameAvailable = ref(true)
 const emailAvailable = ref(true)
 
+const emailCheckInProgressFor = ref('')
+const usernameCheckInProgressFor = ref('')
+
 const errorMessage = ref('')
 const usernameError = ref('')
 const emailError = ref('')
@@ -74,13 +77,20 @@ async function checkUsername(value) {
     return
   }
 
+  usernameCheckInProgressFor.value = value
   checkingUsername.value = true
+
   try {
     const available = await userStore.checkFieldAvailability('username', value)
-    usernameAvailable.value = available
-    usernameError.value = available ? '' : 'Это имя занято'
+
+    if (usernameCheckInProgressFor.value === value) {
+      usernameAvailable.value = available
+      usernameError.value = available ? '' : 'Это имя занято'
+    }
   } finally {
-    checkingUsername.value = false
+    if (usernameCheckInProgressFor.value === value) {
+      checkingUsername.value = false
+    }
   }
 }
 
@@ -92,13 +102,20 @@ async function checkEmail(value) {
     return;
   }
 
+  emailCheckInProgressFor.value = value;
   checkingEmail.value = true;
+
   try {
     const available = await userStore.checkFieldAvailability('email', value);
-    emailAvailable.value = available;
-    emailError.value = available ? '' : 'Этот email занят';
+
+    if (emailCheckInProgressFor.value === value) {
+      emailAvailable.value = available;
+      emailError.value = available ? '' : 'Этот email занят';
+    }
   } finally {
-    checkingEmail.value = false;
+    if (emailCheckInProgressFor.value === value) {
+      checkingEmail.value = false;
+    }
   }
 }
 
@@ -116,7 +133,6 @@ watch(email, (newVal) => {
     emailAvailable.value = true;
     emailError.value = '';
   }
-  console.log('Email:', newVal, 'Available:', emailAvailable.value, 'Error:', emailError.value);
 });
 
 watch(privacyPolicyAccepted, (newVal) => {
@@ -187,7 +203,7 @@ const register = async () => {
           required
           :rules="[validateEmail]"
           :error-messages="emailError"
-          :error="emailError || checkingEmail || !emailAvailable"
+          :error="!!emailError || checkingEmail"
           prepend-inner-icon="mdi-email"
           variant="outlined"
           density="comfortable"

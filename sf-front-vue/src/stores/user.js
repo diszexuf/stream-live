@@ -1,13 +1,7 @@
-import {defineStore} from 'pinia';
-import {ref} from 'vue';
-import {
-    AuthApi,
-    UsersApi,
-    UserAuthRequest,
-    UserRegisterRequest,
-    UserUpdateRequest,
-} from "@/api/src/index.js";
-import {setAuthToken, callProtectedApi} from './authHelpers';
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
+import { AuthApi, UserAuthRequest, UserRegisterRequest, UsersApi } from "@/api/src/index.js";
+import { callProtectedApi, setAuthToken } from './authHelpers';
 
 export const useUserStore = defineStore('user', () => {
     const token = ref(localStorage.getItem('token') || null);
@@ -75,46 +69,19 @@ export const useUserStore = defineStore('user', () => {
         }
     }
 
-    async function updateCurrentUser({email, avatarFile, bio}) {
+    async function updateCurrentUser(formData) {
         if (!user.value) {
             throw new Error('Пользователь не авторизован');
         }
 
         try {
-            if (avatarFile) {
-                const formData = new FormData();
-                if (email) formData.append('email', email);
-                if (bio) formData.append('bio', bio);
-                formData.append('avatarUrl', avatarFile);
+            const opts = {
+                email: formData.get('email'),
+                avatarUrl: formData.get('avatarUrl'),
+                bio: formData.get('bio')
+            };
 
-                const response = await callProtectedApi(async () => {
-                    const apiClient = usersService.apiClient;
-                    const basePath = apiClient.basePath || 'http://localhost:8080/api';
-
-                    const fetchResponse = await fetch(`${basePath}/users/me`, {
-                        method: 'PUT',
-                        headers: {
-                            'Authorization': `Bearer ${token.value}`,
-                        },
-                        body: formData
-                    });
-
-                    if (!fetchResponse.ok) {
-                        const error = new Error(`HTTP ${fetchResponse.status}: ${fetchResponse.statusText}`);
-                        error.response = { status: fetchResponse.status, statusText: fetchResponse.statusText };
-                        throw error;
-                    }
-
-                    return await fetchResponse.json();
-                });
-            } else {
-                const updateRequest = new UserUpdateRequest();
-                if (email) updateRequest.email = email;
-                if (bio) updateRequest.bio = bio;
-
-                await callProtectedApi(() => usersService.updateUser(updateRequest));
-            }
-
+            const response = await callProtectedApi(() => usersService.updateUser(opts));
             await fetchCurrentUser();
             return true;
         } catch (error) {
@@ -167,10 +134,10 @@ export const useUserStore = defineStore('user', () => {
             switch (fieldType) {
                 case 'username':
                     response = await usersService.checkUsernameAvailability(value);
-                    break
+                    break;
                 case 'email':
                     response = await usersService.checkEmailAvailability(value);
-                    break
+                    break;
                 default:
                     console.error('Unknown field type');
             }

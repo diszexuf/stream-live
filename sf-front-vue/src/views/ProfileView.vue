@@ -1,7 +1,7 @@
 <script setup>
-import { ref, onMounted, computed, nextTick } from 'vue'
-import { useUserStore } from '@/stores/user'
-import { useRouter } from 'vue-router'
+import {ref, onMounted, computed, nextTick} from 'vue'
+import {useUserStore} from '@/stores/user'
+import {useRouter} from 'vue-router'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -55,7 +55,7 @@ const handleFileUpload = (event) => {
     return
   }
 
-  // Сохраняем файл как есть - пусть API клиент сам разберется
+  // Сохраняем файл
   selectedAvatarFile.value = file
 
   // Создаем превью
@@ -74,20 +74,20 @@ const saveProfile = async () => {
 
   const bioValue = typeof bioText.value === 'object' ? '' : (bioText.value || '')
 
-  const payload = {
-    email: userStore.user.email,
-    bio: bioValue,
-    avatarFile: selectedAvatarFile.value, // Передаем файл, а не URL
-  }
+  const formData = new FormData()
+  formData.append('email', userStore.user.email)
+  if (bioValue) formData.append('bio', bioValue)
+  if (selectedAvatarFile.value) formData.append('avatarUrl', selectedAvatarFile.value)
 
   console.log('ProfileView: Отправка данных профиля:', {
-    ...payload,
-    avatarFile: payload.avatarFile ? `File: ${payload.avatarFile.name}` : null
+    email: userStore.user.email,
+    bio: bioValue,
+    avatarUrl: selectedAvatarFile.value ? `File: ${selectedAvatarFile.value.name}` : null
   })
 
   try {
     console.log('ProfileView: Вызов userStore.updateCurrentUser')
-    const result = await userStore.updateCurrentUser(payload)
+    const result = await userStore.updateCurrentUser(formData)
     console.log('ProfileView: Результат обновления профиля:', result)
 
     if (result) {
@@ -244,7 +244,6 @@ onMounted(async () => {
                   class="mb-4"
               ></v-textarea>
 
-              <!-- Информация о выбранном файле -->
               <v-alert v-if="selectedAvatarFile" type="info" variant="tonal" class="mb-4">
                 Выбран файл: {{ selectedAvatarFile.name }} ({{ Math.round(selectedAvatarFile.size / 1024) }} KB)
               </v-alert>
@@ -305,7 +304,6 @@ onMounted(async () => {
               </v-card-text>
             </v-card>
           </v-window-item>
-
         </v-window>
       </v-card-text>
     </v-card>
