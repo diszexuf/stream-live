@@ -27,7 +27,6 @@ public class DataInitializer implements CommandLineRunner {
   @Override
   @Transactional
   public void run(String... args) {
-    // Создание пользователей
     User alice = createUser("alice", "alice@example.com");
     User bob = createUser("bob", "bob@example.com");
     User charlie = createUser("charlie", "charlie@example.com");
@@ -36,31 +35,25 @@ public class DataInitializer implements CommandLineRunner {
 
     userRepository.saveAll(List.of(alice, bob, charlie, diana, eve));
 
-    // Подписки
     followRepository.save(Follow.builder().follower(alice).following(bob).build());
     followRepository.save(Follow.builder().follower(charlie).following(alice).build());
     followRepository.save(Follow.builder().follower(diana).following(eve).build());
     followRepository.save(Follow.builder().follower(eve).following(alice).build());
 
-    // Стримы Alice (2)
     createAndSaveStream(alice, "Готовим вкусно", Set.of("кулинария", "еда", "дом"), true, LocalDateTime.now().minusMinutes(10), 42);
     createAndSaveStream(alice, "Тихий вечер", Set.of(), false, LocalDateTime.now().minusHours(2), 3);
 
-    // Стримы Bob (3)
     createAndSaveStream(bob, "Играем вместе", Set.of("игры", "онлайн"), true, LocalDateTime.now().minusMinutes(20), 10);
     createAndSaveStream(bob, "Боб делится новостями", Set.of("жизнь", "блог"), false, LocalDateTime.now().minusDays(1), 5);
     createAndSaveStream(bob, "Прямой эфир: Пишем код", Set.of("программирование", "разработка"), true, LocalDateTime.now().minusMinutes(30), 15);
 
-    // Стримы Charlie (2)
     createAndSaveStream(charlie, "Чарли о технологиях", Set.of("технологии", "интернет"), true, LocalDateTime.now().minusMinutes(5), 8);
     createAndSaveStream(charlie, "Философские мысли", Set.of("размышления"), false, LocalDateTime.now().minusHours(3), 1);
 
-    // Стримы Diana (3)
     createAndSaveStream(diana, "Арт-мастерская Дианы", Set.of("живопись", "рисование"), true, LocalDateTime.now().minusMinutes(15), 7);
     createAndSaveStream(diana, "Вечерние зарисовки", Set.of("эскизы", "расслабление"), false, LocalDateTime.now().minusHours(5), 2);
     createAndSaveStream(diana, "Урок живописи онлайн", Set.of("урок", "акварель"), true, LocalDateTime.now().minusMinutes(45), 9);
 
-    // Стримы Eve (3)
     createAndSaveStream(eve, "Музыка в прямом эфире", Set.of("пение", "живое выступление"), true, LocalDateTime.now().minusMinutes(8), 12);
     createAndSaveStream(eve, "Теория музыки", Set.of("теория", "музыкальная грамота"), false, LocalDateTime.now().minusHours(4), 6);
     createAndSaveStream(eve, "Джем-сейшн в прямом эфиру", Set.of("джаз", "совместное исполнение"), true, LocalDateTime.now().minusMinutes(12), 14);
@@ -76,7 +69,7 @@ public class DataInitializer implements CommandLineRunner {
         .streamKey(streamKey)
         .enabled(true)
         .authorities(Set.of("ROLE_USER"))
-        .avatarUrl("https://picsum.photos/200/300 ")
+        .avatarUrl("https://picsum.photos/200/300?random=" + System.currentTimeMillis())
         .bio("Описание пользователя " + username)
         .followerCount(0)
         .build();
@@ -88,7 +81,7 @@ public class DataInitializer implements CommandLineRunner {
         .user(user)
         .title(title)
         .description(title + "... подробнее в прямом эфире!")
-        .thumbnailUrl("https://picsum.photos/200/300 ")
+        .thumbnailUrl("https://picsum.photos/200/300?random=" + System.currentTimeMillis())
         .tags(tags)
         .isLive(isLive)
         .startedAt(startedAt)

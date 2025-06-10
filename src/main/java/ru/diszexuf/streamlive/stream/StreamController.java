@@ -4,12 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import ru.diszexuf.streamlive.api.StreamsApi;
-import ru.diszexuf.streamlive.model.StreamRequestDto;
 import ru.diszexuf.streamlive.model.StreamResponseDto;
 import ru.diszexuf.streamlive.stream.useCases.*;
 
@@ -50,17 +48,18 @@ public class StreamController implements StreamsApi {
 
     @Override
     public ResponseEntity<List<StreamResponseDto>> getLiveStreams() {
-        return ResponseEntity.ok(getLiveStreamsUseCase.execute());
+        var streams = getLiveStreamsUseCase.execute();
+        return ResponseEntity.ok(streams);
     }
 
     @Override
-    public ResponseEntity<StreamResponseDto> getStreamById(@PathVariable("id") UUID streamId) {
+    public ResponseEntity<StreamResponseDto> getStreamById(UUID streamId) {
         return ResponseEntity.ok(getStreamByIdUseCase.execute(streamId));
     }
 
     @Override
-    public ResponseEntity<List<StreamResponseDto>> getStreamsByUser(@PathVariable("userId") UUID id) {
-        return ResponseEntity.ok(getStreamsByUserUseCase.execute(id));
+    public ResponseEntity<List<StreamResponseDto>> getStreamsByUser(UUID userId) {
+        return ResponseEntity.ok(getStreamsByUserUseCase.execute(userId));
     }
 
     @Override
@@ -69,7 +68,7 @@ public class StreamController implements StreamsApi {
     }
 
     @Override
-    public ResponseEntity<StreamResponseDto> updateStream(StreamRequestDto streamRequestDto) {
-        return ResponseEntity.ok(updateStreamUseCase.execute(streamRequestDto));
+    public ResponseEntity<StreamResponseDto> updateStream(String title, String description, MultipartFile thumbnailUrl) {
+        return ResponseEntity.ok(updateStreamUseCase.execute(title, description, thumbnailUrl));
     }
 }

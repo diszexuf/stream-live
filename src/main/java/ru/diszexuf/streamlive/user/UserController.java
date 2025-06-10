@@ -22,7 +22,6 @@ public class UserController implements UsersApi {
 
     private final GetAllUsersUseCase getAllUsersUseCase;
     private final GetUserByIdUseCase getUserByIdUseCase;
-    private final GetUserByUsernameUseCase getUserByUsernameUseCase;
     private final UpdateUserUseCase updateUserUseCase;
     private final DeleteUserUseCase deleteUserUseCase;
     private final GetCurrentUserUseCase getCurrentUserUseCase;
@@ -64,11 +63,6 @@ public class UserController implements UsersApi {
     @Override
     public ResponseEntity<UserResponseDto> getUserById(UUID id) {
         return ResponseEntity.ok(getUserByIdUseCase.execute(id));
-    }
-
-    @Override
-    public ResponseEntity<UserResponseDto> getUserByUsername(String userUsername) {
-        return ResponseEntity.ok(getUserByUsernameUseCase.execute(userUsername));
     }
 
     @Override

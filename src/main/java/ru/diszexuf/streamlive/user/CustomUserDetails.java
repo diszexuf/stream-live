@@ -18,12 +18,13 @@ public class CustomUserDetails implements UserDetails {
 
   @Override
   public String getPassword() {
-    return user.getPassword();  // Вернем пароль из сущности User
+    return user.getPassword();
   }
 
   @Override
   public String getUsername() {
-    return user.getUsername();  // Вернем имя пользователя
+    return user.getUsername();
+
   }
 
 }

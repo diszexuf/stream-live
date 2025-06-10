@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue' // Добавляем watch
 import { useStreamStore } from '@/stores/stream'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
@@ -13,10 +13,10 @@ const formData = ref({
   title: '',
   description: '',
   thumbnailUrl: '',
-  tags: []
+  // tags: []
 })
 
-const newTag = ref('')
+// const newTag = ref('')
 const activeTab = ref('streams')
 const isLoading = ref(false)
 const errorMessage = ref('')
@@ -26,16 +26,16 @@ const isAuthenticated = computed(() => userStore.isAuthenticated)
 const hasActiveStream = computed(() => streamStore.hasActiveStream)
 const activeStream = computed(() => streamStore.activeStream)
 
-const addTag = () => {
-  if (newTag.value && !formData.value.tags.includes(newTag.value)) {
-    formData.value.tags.push(newTag.value)
-    newTag.value = ''
-  }
-}
+// const addTag = () => {
+//   if (newTag.value && !formData.value.tags.includes(newTag.value)) {
+//     formData.value.tags.push(newTag.value)
+//     newTag.value = ''
+//   }
+// }
 
-const removeTag = (tag) => {
-  formData.value.tags = formData.value.tags.filter(t => t !== tag)
-}
+// const removeTag = (tag) => {
+//   formData.value.tags = formData.value.tags.filter(t => t !== tag)
+// }
 
 const createStream = async () => {
   if (!formData.value.title) {
@@ -56,7 +56,7 @@ const createStream = async () => {
     } else if (formData.value.thumbnailUrl) {
       streamData.append('thumbnailUrl', formData.value.thumbnailUrl)
     }
-    streamData.append('tags', JSON.stringify(formData.value.tags))
+    // streamData.append('tags', JSON.stringify(formData.value.tags))
 
     const result = await streamStore.createStream(streamData)
 
@@ -94,7 +94,7 @@ const updateStream = async () => {
     } else if (formData.value.thumbnailUrl) {
       streamData.append('thumbnailUrl', formData.value.thumbnailUrl)
     }
-    streamData.append('tags', JSON.stringify(formData.value.tags))
+    // streamData.append('tags', JSON.stringify(formData.value.tags))
 
     const result = await streamStore.updateStream(streamData)
 
@@ -134,7 +134,7 @@ const editStream = (stream) => {
     title: stream.title || '',
     description: stream.description || '',
     thumbnailUrl: stream.thumbnailUrl || '',
-    tags: Array.isArray(stream.tags) ? [...stream.tags] : []
+    // tags: Array.isArray(stream.tags) ? [...stream.tags] : []
   }
   activeTab.value = 'edit'
 }
@@ -144,13 +144,19 @@ const resetForm = () => {
     title: '',
     description: '',
     thumbnailUrl: '',
-    tags: []
+    // tags: []
   }
 }
 
 const loadUserStreams = async () => {
   if (!isAuthenticated.value) {
     router.push('/login')
+    return
+  }
+
+  if (!userStore.user?.id) {
+    console.error('User not loaded or missing ID:', userStore.user)
+    errorMessage.value = 'Ошибка: пользователь не загружен'
     return
   }
 
@@ -167,9 +173,32 @@ const loadUserStreams = async () => {
   }
 }
 
+// Добавляем наблюдатель за activeTab
+watch(activeTab, (newTab) => {
+  if (newTab === 'edit' && activeStream.value) {
+    editStream(activeStream.value)
+  }
+})
+
 onMounted(async () => {
   if (!isAuthenticated.value) {
     router.push('/login')
+    return
+  }
+
+  if (!userStore.user) {
+    try {
+      await userStore.fetchCurrentUser()
+    } catch (error) {
+      console.error('Не удалось загрузить пользователя:', error)
+      router.push('/login')
+      return
+    }
+  }
+
+  if (!userStore.user?.id) {
+    console.error('ID пользователя не найден')
+    errorMessage.value = 'Ошибка: ID пользователя не найден'
     return
   }
 
@@ -208,7 +237,7 @@ onMounted(async () => {
 
     <v-window v-model="activeTab">
       <v-window-item value="streams">
-        <v-card v-if="hasActiveStream"  variant="outlined" class="mb-4">
+        <v-card v-if="hasActiveStream" variant="outlined" class="mb-4">
           <v-card-title>Активный стрим</v-card-title>
           <v-card-text>
             <p><strong>Название:</strong> {{ activeStream.title }}</p>
@@ -303,6 +332,7 @@ onMounted(async () => {
                   class="mb-4"
               />
 
+              <!--
               <div class="mb-4">
                 <label class="text-subtitle-1 mb-2 d-block">Теги</label>
                 <div class="d-flex flex-wrap gap-2 mb-2">
@@ -326,6 +356,7 @@ onMounted(async () => {
                   <v-btn @click="addTag" icon="mdi-plus"></v-btn>
                 </div>
               </div>
+              -->
 
               <v-btn type="submit" color="primary" :loading="isLoading" class="mr-2">
                 <v-icon start>mdi-check</v-icon>
@@ -367,6 +398,7 @@ onMounted(async () => {
                   class="mb-4"
               />
 
+              <!--
               <div class="mb-4">
                 <label class="text-subtitle-1 mb-2 d-block">Теги</label>
                 <div class="d-flex flex-wrap gap-2 mb-2">
@@ -390,6 +422,7 @@ onMounted(async () => {
                   <v-btn @click="addTag" icon="mdi-plus"></v-btn>
                 </div>
               </div>
+              -->
 
               <v-btn type="submit" color="primary" :loading="isLoading" class="mr-2">
                 <v-icon start>mdi-check</v-icon>

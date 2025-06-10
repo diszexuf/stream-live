@@ -1,7 +1,7 @@
 import {defineStore} from 'pinia';
 import {computed, ref} from 'vue';
 import {useUserStore} from './user';
-import {StreamRequest, StreamsApi} from "@/api/src/index.js";
+import {StreamsApi} from "@/api/src/index.js";
 import {callProtectedApi} from './authHelpers';
 
 export const useStreamStore = defineStore('stream', () => {
@@ -101,12 +101,22 @@ export const useStreamStore = defineStore('stream', () => {
             throw new Error('Unauthorized');
         }
 
+
+        if (!userStore.user.id || userStore.user.id === 'undefined') {
+            console.error('User ID is invalid:', userStore.user.id);
+            error.value = 'ID пользователя не найден';
+            throw new Error('Invalid user ID');
+        }
+
         isLoading.value = true;
         error.value = null;
 
         try {
             const streamsService = new StreamsApi();
-            const streams = await callProtectedApi(() => streamsService.getStreamsByUser(userStore.user.id));
+
+            const userId = String(userStore.user.id);
+
+            const streams = await callProtectedApi(() => streamsService.getStreamsByUser(userId));
             currentUserStreams.value = streams.map(stream => enrichStream(stream));
         } catch (err) {
             console.error('Ошибка при загрузке стримов пользователя:', err.message);
@@ -116,6 +126,7 @@ export const useStreamStore = defineStore('stream', () => {
             isLoading.value = false;
         }
     }
+
 
     async function fetchStreamById(streamId) {
         if (!streamId) {
@@ -173,14 +184,14 @@ export const useStreamStore = defineStore('stream', () => {
 
         try {
             const streamsService = new StreamsApi();
-            const request = new StreamRequest({
-                title: formData.get('title'),
-                description: formData.get('description'),
-                tags: JSON.parse(formData.get('tags') || '[]'),
-                thumbnailUrl: formData.get('thumbnailUrl')
-            });
+            const title = formData.get("title");
+            const description = formData.get("description") || '';
+            const thumbnailUrl = formData.get("thumbnailUrl");
 
-            const updatedStream = await callProtectedApi(() => streamsService.updateStream(request));
+            const updatedStream = await callProtectedApi(() => streamsService.updateStream(title, {
+                description,
+                thumbnailUrl
+            }));
             const enrichedStream = enrichStream(updatedStream);
 
             const index = currentUserStreams.value.findIndex(s => s.id === updatedStream.id);
@@ -221,7 +232,7 @@ export const useStreamStore = defineStore('stream', () => {
         try {
             const streamsService = new StreamsApi();
             await callProtectedApi(() => streamsService.endStream());
-            await fetchCurrentUserStreams();
+            await callProtectedApi(() => fetchCurrentUserStreams());
         } catch (err) {
             console.error('Ошибка при завершении стрима:', err.message);
             if (err.response?.status === 401) {

@@ -253,8 +253,6 @@ onMounted(async () => {
                         hide-details
                         class="stream-key-field"
                         @click="toggleStreamKeyVisibility"
-                        :append-icon="isStreamKeyVisible ? 'mdi-eye-off' : 'mdi-eye'"
-                        @click:append="toggleStreamKeyVisibility"
                     >
                       <template v-slot:prepend>
                         <v-tooltip location="top">

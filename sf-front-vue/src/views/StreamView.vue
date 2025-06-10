@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useStreamStore } from '@/stores/stream';
 import { useUserStore } from '@/stores/user';
 import { setAuthToken } from '@/stores/authHelpers';
+import {UsersApi} from "@/api/src/index.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -18,6 +19,9 @@ const latency = ref(0);
 const isPlayerInitialized = ref(false);
 const showObsInstructions = ref(false);
 const isStreamKeyVisible = ref(false);
+
+const user = ref(null);
+const usersService = new UsersApi();
 
 const isAuthenticated = computed(() => userStore.isAuthenticated);
 const isStreamOwner = computed(() => {
@@ -38,7 +42,6 @@ const updateVideoSource = (stream) => {
     type: 'application/x-mpegURL',
   };
 
-  console.log('Обновление источника видео:', newSource);
 
   player.value.src(newSource);
   player.value.load();
@@ -68,7 +71,6 @@ const checkStreamAvailability = async (hlsUrl) => {
 
 const initPlayer = async () => {
   if (isPlayerInitialized.value || player.value) {
-    console.log('Плеер уже инициализирован, пропускаем');
     return;
   }
 
@@ -83,11 +85,9 @@ const initPlayer = async () => {
   }
 
   const hlsUrl = getHlsUrl(streamStore.currentStream);
-  console.log('Инициализация плеера с URL:', hlsUrl);
 
   const isAvailable = await checkStreamAvailability(hlsUrl);
   if (!isAvailable) {
-    console.log('Стрим недоступен, повторная попытка через 3 секунды...');
     setTimeout(initPlayer, 3000);
     return;
   }
@@ -122,36 +122,30 @@ const initPlayer = async () => {
 
   isPlayerInitialized.value = true;
   player.value = videojs(videoElement, options, function onPlayerReady() {
-    console.log('Плеер готов к использованию', this);
 
     let retryCount = 0;
     const maxRetries = 5;
 
     this.on('error', function () {
       const error = this.error();
-      console.log('Ошибка плеера:', error);
 
       if (error && error.code === 4) {
-        console.log('Формат потока не поддерживается, завершаем попытки');
         return;
       }
 
       if (retryCount < maxRetries) {
         retryCount++;
         const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
-        console.log(`Попытка ${retryCount} из ${maxRetries} через ${delay} мс...`);
         setTimeout(() => {
           this.load();
           this.play().catch(err => console.warn('Ошибка воспроизведения:', err));
         }, delay);
       } else {
-        console.log('Превышено максимальное количество попыток');
         retryCount = 0;
       }
     });
 
     this.on('playing', function () {
-      console.log('Воспроизведение началось');
       retryCount = 0;
       const updateLatency = () => {
         latency.value = this.liveTracker ? (this.liveTracker.seekableEnd() - this.currentTime()).toFixed(1) : 0;
@@ -195,7 +189,14 @@ const loadStream = async () => {
       errorMessage.value = streamStore.error || 'Стрим не найден';
       console.error('Стрим не найден или произошла ошибка:', streamStore.error);
     } else {
-      console.log('Стрим успешно загружен:', streamStore.currentStream);
+
+      try {
+        const data = await usersService.getUserById(streamStore.currentStream.userId);
+        user.value = data;
+      } catch (error) {
+        console.error('Ошибка при загрузке пользователя:', error);
+        user.value = null;
+      }
     }
   } catch (error) {
     console.error('Ошибка при загрузке стрима:', error);
@@ -203,6 +204,7 @@ const loadStream = async () => {
   } finally {
     isLoading.value = false;
   }
+
 };
 
 const endStream = async () => {
@@ -241,7 +243,6 @@ const formatDate = (dateString) => {
   try {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) {
-      console.log('Invalid date from string:', dateString);
       return 'Нет данных';
     }
 
@@ -276,23 +277,11 @@ const toggleStreamKeyVisibility = () => {
 
 const getMaskedStreamKey = (key) => {
   if (!key) return '';
-  if (isStreamKeyVisible.value) return key;
-
-  const visiblePart = 4;
-  if (key.length <= visiblePart * 2) {
-    return '*'.repeat(key.length);
-  }
-
-  const start = key.substring(0, visiblePart);
-  const end = key.substring(key.length - visiblePart);
-  const masked = '*'.repeat(key.length - visiblePart * 2);
-
-  return `${start}${masked}${end}`;
+  return isStreamKeyVisible.value ? key : '*'.repeat(key.length);
 };
 
 watch(() => streamStore.currentStream?.isLive, (isLive) => {
   if (isLive === undefined) return;
-  console.log('Статус стрима изменился:', isLive);
   if (isLive) {
     setTimeout(() => initPlayer(), 1000);
   } else {
@@ -379,11 +368,15 @@ onUnmounted(() => {
 
           <v-card-text>
             <div class="d-flex align-center mb-4">
-              <v-avatar size="40" class="mr-2">
-                <v-img :src="`https://i.pravatar.cc/150?u=${streamStore.currentStream.userId}`"></v-img>
+              <v-avatar size="32" class="mr-2">
+                <v-img
+                    v-if="user?.avatarUrl"
+                    :src="user.avatarUrl"
+                ></v-img>
+                <v-icon v-else>mdi-account-circle</v-icon>
               </v-avatar>
               <div>
-                <div class="text-subtitle-1 font-weight-bold">{{ streamStore.currentStream.userName || 'Пользователь' }}</div>
+                <span class="text-subtitle-2">{{ user?.username || 'Пользователь' }}</span>
                 <div class="text-caption">{{ formatDate(streamStore.currentStream.startedAt) }}</div>
               </div>
 
@@ -442,22 +435,21 @@ onUnmounted(() => {
                     density="compact"
                     hide-details
                     class="flex-grow-1 mr-2"
-                    :append-icon="isStreamKeyVisible ? 'mdi-eye-off' : 'mdi-eye'"
-                    @click:append="toggleStreamKeyVisibility"
+                    @click="toggleStreamKeyVisibility"
+                    style="cursor: pointer;"
                 >
-                  <template v-slot:prepend>
-                    <v-tooltip :text="isStreamKeyVisible ? 'Скрыть ключ' : 'Показать ключ'">
-                      <template v-slot:activator="{ props }">
-                        <v-icon
-                            v-bind="props"
-                            :color="isStreamKeyVisible ? 'warning' : 'primary'"
-                            @click="toggleStreamKeyVisibility"
-                        >
-                          {{ isStreamKeyVisible ? 'mdi-lock-open' : 'mdi-lock' }}
-                        </v-icon>
-                      </template>
-                    </v-tooltip>
-                  </template>
+                <template v-slot:prepend>
+                  <v-tooltip :text="isStreamKeyVisible ? 'Скрыть ключ' : 'Показать ключ'">
+                    <template v-slot:activator="{ props }">
+                      <v-icon
+                          v-bind="props"
+                          :color="isStreamKeyVisible ? 'warning' : 'primary'"
+                      >
+                        {{ isStreamKeyVisible ? 'mdi-lock-open' : 'mdi-lock' }}
+                      </v-icon>
+                    </template>
+                  </v-tooltip>
+                </template>
                 </v-text-field>
                 <v-btn
                     icon="mdi-content-copy"
@@ -482,8 +474,8 @@ onUnmounted(() => {
               </v-btn>
 
               <v-dialog v-model="showObsInstructions" max-width="600px">
-                <v-card class="p-4">
-                  <v-card-title class="text-h5">
+                <v-card class="pa-4">
+                  <v-card-title class="text-h5 pt-3">
                     Настройка OBS для стриминга
                   </v-card-title>
                   <v-card-text>
@@ -496,7 +488,7 @@ onUnmounted(() => {
                       <li class="mb-2">В поле <strong>Сервер</strong> введите: <code>rtmp://127.0.0.1:1935/live</code></li>
                       <li class="mb-2">В поле <strong>Ключ потока</strong> введите ключ потока</li>
                       <li class="mb-2">Нажмите <strong>OK</strong> для сохранения настроек</li>
-                      <li class="mb-2">Нажмите кнопку <strong>Начать трансляцию</strong> в главном окне OBS</li>
+                      <li class="mb-0">Нажмите кнопку <strong>Начать трансляцию</strong> в главном окне OBS</li>
                     </ol>
                   </v-card-text>
                   <v-card-actions>

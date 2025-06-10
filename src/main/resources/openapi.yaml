@@ -65,8 +65,6 @@ paths:
       tags: [users]
       summary: Get all users
       operationId: getAllUsers
-      security:
-        - bearerAuth: []
       responses:
         200:
           description: List of users
@@ -184,15 +182,13 @@ paths:
         401:
           description: Unauthorized
 
-  /users/{id}:
+  /users/{userId}:
     get:
       tags: [users]
       summary: Get user by ID
       operationId: getUserById
       parameters:
         - $ref: '#/components/parameters/UserId'
-      security:
-        - bearerAuth: []
       responses:
         200:
           description: User details
@@ -224,26 +220,24 @@ paths:
           description: User not found
 
 
-  /users/{userUsername}:
-    get:
-      tags: [users]
-      summary: Get user by username
-      operationId: getUserByUsername
-      parameters:
-        - $ref: '#/components/parameters/UserUsername'
-      security:
-        - bearerAuth: []
-      responses:
-        200:
-          description: User details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserResponse'
-        401:
-          description: Unauthorized
-        404:
-          description: User not found
+#  /users/{userUsername}:
+#    get:
+#      tags: [users]
+#      summary: Get user by username
+#      operationId: getUserByUsername
+#      parameters:
+#        - $ref: '#/components/parameters/UserUsername'
+#      responses:
+#        200:
+#          description: User details
+#          content:
+#            application/json:
+#              schema:
+#                $ref: '#/components/schemas/UserResponse'
+#        401:
+#          description: Unauthorized
+#        404:
+#          description: User not found
 
   /streams:
     get:
@@ -318,7 +312,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               $ref: '#/components/schemas/StreamRequest'
       responses:
@@ -365,7 +359,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/StreamResponse'
 
-  /streams/{id}:
+  /streams/{streamId}:
     get:
       tags: [ streams ]
       summary: Get stream by ID
@@ -558,15 +552,8 @@ components:
           minimum: 0
 
   parameters:
-    UserUsername:
-      name: userUsername
-      in: path
-      required: true
-      schema:
-        type: string
-        example: "john_doe"
     UserId:
-      name: id
+      name: userId
       in: path
       required: true
       schema:
@@ -574,7 +561,7 @@ components:
         format: uuid
         example: "550e8400-e29b-41d4-a716-446655440000"
     StreamId:
-      name: id
+      name: streamId
       in: path
       required: true
       schema:

@@ -16,7 +16,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -56,7 +57,7 @@ public class CreateStreamUseCase {
         .title(title)
         .description(description)
         .thumbnailUrl(thumbnail)
-        .startedAt(LocalDateTime.now())
+        .startedAt(ZonedDateTime.now(ZoneOffset.UTC).toLocalDateTime())
 //        .tags(tags != null ?
 //            new HashSet<>(tags) : new HashSet<>())
         .isLive(true)
