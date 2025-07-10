@@ -337,9 +337,9 @@ onUnmounted(() => {
                   Для просмотра видео необходимо включить JavaScript и обновить браузер до поддерживающего HTML5 видео.
                 </p>
               </video>
-              <div class="latency-indicator">
-                Задержка: {{ latency }} секунд
-              </div>
+<!--              <div class="latency-indicator">-->
+<!--                Задержка: {{ latency }} секунд-->
+<!--              </div>-->
             </div>
             <div v-else class="video-container">
               <div class="video-placeholder d-flex align-center justify-center bg-grey-darken-3">

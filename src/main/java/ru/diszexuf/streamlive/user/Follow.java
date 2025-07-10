@@ -4,15 +4,10 @@ import jakarta.persistence.*;
 import lombok.*;
 import ru.diszexuf.streamlive.common.CoreEntity;
 
+import java.util.UUID;
+
 @Entity
-@Table(name = "follows",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_follow_pair", columnNames = {"follower_id", "following_id"})
-        },
-        indexes = {
-                @Index(name = "idx_follow_follower", columnList = "follower_id"),
-                @Index(name = "idx_follow_following", columnList = "following_id")
-        })
+@Table(name = "follows")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -21,16 +16,16 @@ import ru.diszexuf.streamlive.common.CoreEntity;
 public class Follow extends CoreEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", updatable = false, nullable = false)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", unique = true, updatable = false, nullable = false)
+    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "follower_id", nullable = false, foreignKey = @ForeignKey(name = "fk_follow_follower"))
+    @JoinColumn(name = "follower_id", unique = true, nullable = false, foreignKey = @ForeignKey(name = "fk_follow_follower"))
     private User follower;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "following_id", nullable = false, foreignKey = @ForeignKey(name = "fk_follow_following"))
+    @JoinColumn(name = "following_id", unique = true, nullable = false, foreignKey = @ForeignKey(name = "fk_follow_following"))
     private User following;
 
 }

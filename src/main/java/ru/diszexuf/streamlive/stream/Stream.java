@@ -5,17 +5,17 @@ import lombok.*;
 import ru.diszexuf.streamlive.common.CoreEntity;
 import ru.diszexuf.streamlive.user.User;
 
-import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
 
 @Entity
-@Table(name = "streams",
-        indexes = {
-                @Index(name = "idx_stream_user", columnList = "user_id"),
-                @Index(name = "idx_stream_live", columnList = "is_live"),
-                @Index(name = "idx_stream_title", columnList = "title")
-        })
+@Table(
+        name = "streams",
+        schema = "public",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "", columnNames = {""})
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -32,13 +32,13 @@ public class Stream extends CoreEntity {
     @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_stream_user"))
     private User user;
 
-    @Column(name = "title", nullable = false)
+    @Column(name = "title", nullable = false, length = 150)
     private String title;
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column(name = "description", length = 250)
     private String description;
 
-    @Column(name = "thumbnail_url", nullable = false)
+    @Column(name = "thumbnail_url", nullable = false, length = 250)
     private String thumbnailUrl;
 
     @ElementCollection
@@ -49,15 +49,16 @@ public class Stream extends CoreEntity {
     @Column(name = "tag")
     private Set<String> tags;
 
-    @Column(name = "is_live", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    @Column(name = "is_live", nullable = false)
     private Boolean isLive;
 
-    @Column(name = "started_at")
-    private LocalDateTime startedAt;
+    @Column(name = "viewers_count", nullable = false)
+    private Integer viewersCount;
 
-    @Column(name = "ended_at")
-    private LocalDateTime endedAt;
+    @OneToOne
+    @JoinColumn(name = "stream_metadata_id")
+    private StreamMetadata streamMetadata;
 
-    @Column(name = "viewers_count", nullable = false, columnDefinition = "INT DEFAULT 0")
-    private Integer viewersCount = 0;
+    @Enumerated(EnumType.STRING)
+    private Privacy privacy;
 }
