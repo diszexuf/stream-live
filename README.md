@@ -1,8 +1,65 @@
-In the course of this project, I developed a streaming service with real-time lexical censorship using machine learning technologies. The following tasks were completed:
+# Stream Live: Стриминговый сервис с цензурой лексики
 
-Analyzed existing streaming platforms.
-Designed and implemented the server-side component.
-Designed and implemented the client-side interface.
-Built a lexical censorship module using neural networks.
-Conducted system testing.
-As a result, a fully functional streaming service was created, capable of filtering sensitive vocabulary in real time. The system successfully handles streaming content and applies basic censorship to maintain appropriate language standards.
+Проект представляет собой прототип стримингового сервиса, реализующего передачу видео в реальном времени с автоматической цензурой лексики (в частности, рекламных высказываний) с использованием технологий машинного обучения
+
+Проект разработан в рамках выпускной квалификационной работы бакалавра по направлению "Фундаментальная информатика и информационные технологии" в Южно-Уральском государственном университете
+
+*Текст работы:* https://sp.susu.ru/student/bachelorthesis/2025_402_schelkanovau.pdf
+
+*Презентация к работе:* https://sp.susu.ru/student/bachelorthesis/slides/2025_402_schelkanovau_slides.pdf
+
+**Основные цели**:
+- Анализ существующих стриминговых платформ
+- Проектирование и реализация серверной и клиентской частей
+- Разработка модуля цензуры на основе нейронных сетей
+- Тестирование системы
+
+## Функциональные возможности
+
+### Для гостей (неавторизованных пользователей):
+- Просмотр списка прямых трансляций
+- Поиск трансляций
+- Просмотр выбранной трансляции
+- Регистрация нового аккаунта
+
+### Для зарегистрированных пользователей:
+- Авторизация и выход из аккаунта
+- Запуск собственной прямой трансляции
+- Завершение трансляции
+- Изменение информации о трансляции
+- Просмотр и редактирование данных профиля
+- Обновление ключа трансляции
+
+Сервис использует ngingx-rtmp с поддержкой hls для потоковой передачи видео. Цензура применяется в реальном времени: аудио извлекается из TS-сегментов, транскрибируется, анализируется на наличие рекламных фраз и, при необходимости, маскируется тональным сигналом
+
+## Технологический стек
+
+### Backend:
+- Язык: Java
+- Фреймворк: Spring Boot, Spring Security (с JWT и BCrypt для аутентификации/авторизации), Spring Data JPA
+- База данных: PostgreSQL с Hibernate
+- API: REST, документировано с OpenAPI 3.0 (Swagger Codegen для генерации DTO и интерфейсов)
+- Дополнительно: Nginx RTMP
+
+### Frontend:
+- Фреймворк: Vue.js
+- Управление состоянием: Pinia
+- Маршрутизация: Vue Router
+- UI-компоненты: Vuetify
+- Видеоплеер: Video.js с плагином @videojs/http-streaming для HLS
+- Сборка: Vite
+
+### Модуль цензуры:
+- Язык: Python
+- Распознавание речи: Vosk (библиотека для offline ASR)
+- Классификация текста: Fine-tuned rubert-tiny (на основе BERT, дообучена на датасете из 1608 примеров для выявления рекламных фраз)
+- Библиотеки: transformers (Hugging Face), AdamW оптимизатор
+- Обработка: Извлечение аудио из TS-пакетов, транскрипция, анализ фраз, наложение beep-сигнала на нежелательные сегменты
+
+### Развертывание:
+- Контейнеризация: Docker (контейнеры для PostgreSQL, Nginx RTMP, backend, ML-модуля)
+- Конфигурация: docker-compose для оркестрации
+
+## Тестирование
+
+Все функциональные тесты прошли успешно, включая регистрацию, поиск, просмотр, запуск/завершение трансляций и обработку ошибок. Модуль цензуры протестирован на сценариях с/без нежелательных фраз, включая стыки сегментов — все тесты пройдены
